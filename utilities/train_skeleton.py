@@ -137,10 +137,10 @@ class lr_function:
 
 class Clipper:
     @classmethod
-    def get_clipped_optim(cls,optim, args, kwargs):
+    def get_clipped_optim(cls,optim, args, kwargs=None):
         clipped_optim = None
         if optim == 'Adamax':
-           clipped_optim = ClippedAdamax(*args, **kwargs)
+           clipped_optim = ClippedAdamax(*args)
         elif optim == 'Adam':
             clipped_optim = ClippedAdam(*args, **kwargs)
         elif optim == 'SGD':

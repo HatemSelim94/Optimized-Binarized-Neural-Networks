@@ -9,7 +9,7 @@ from .edge import Edge
 
 
 class NCell(nn.Module):
-    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,stride=1, edges_num=2, ops_num=5, node_num=4,binary=True, affine=False, init_alphas=None) -> None:
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,init_alphas=None,stride=1, edges_num=2, ops_num=5, node_num=4,binary=True, affine=False):
         super(NCell, self).__init__()
         self.edges_num = edges_num
         self.ops_num = ops_num
@@ -24,9 +24,9 @@ class NCell(nn.Module):
         
         self._init_alphas(init_alphas)
         self.sum = Sum()
-        self.concat = Cat()
+        self.cat = Cat()
 
-    def forward(self, input0, input1):
+    def forward(self, input0, input1,  skip_input):
         s0 = self.preprocess0(input0)
         s1 = self.preprocess1(input1)
 
@@ -34,11 +34,11 @@ class NCell(nn.Module):
         #print(states[-2].shape)
         offset = 0
         for i in range(self.node_num):
-            s = self.sum(self.edges[offset+j](h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states[-2:])) #offset +j = 2
+            s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states[-2:])]) #offset +j = 2
             offset += 2
             states.append(s)
         states.append(input1)
-        return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
+        return self.cat(states[-(self.node_num+1):]), skip_input # channels number is multiplier "4" * C "C_curr"
     
     def _init_alphas(self, alphas=None):
         if alphas is None:
@@ -77,7 +77,7 @@ class NCell(nn.Module):
 
 
 class RCell(nn.Module):
-    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,edges_num=2, ops_num=5, node_num=4,binary=True, affine=False,init_alphas=None) -> None:
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,init_alphas=None,skip_channels=64,edges_num=2, ops_num=5, node_num=4,binary=True, affine=False) -> None:
         super(RCell, self).__init__()
         self.edges_num = edges_num
         self.ops_num = ops_num
@@ -87,7 +87,7 @@ class RCell(nn.Module):
         self.edges = nn.ModuleList()
         self.C = C
 
-        self.preprocess_skip = Preprocess.skip('r',(10, affine, 2))
+        self.preprocess_skip = Preprocess.skip('r',(skip_channels, affine, 2))
 
         for n in range(node_num):
             for e in range(edges_num):
@@ -96,9 +96,9 @@ class RCell(nn.Module):
         
         self._init_alphas(init_alphas)
         self.sum = Sum()
-        self.concat = Cat()
+        self.cat = Cat()
 
-    def forward(self, input0, input1):
+    def forward(self, input0, input1, skip_input):
         _, c,_,_ = input1.shape
         s0 = self.preprocess0(input0)
         s1 = self.preprocess1(input1)
@@ -107,13 +107,13 @@ class RCell(nn.Module):
         states = [s0, s1]
         offset = 0
         for i in range(self.node_num):
-            s = self.sum(self.edges[offset+j](h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states[-2:])) #offset +j = 2
+            s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states[-2:])]) #offset +j = 2
             offset += 2
             states.append(s)
-        prp = self.preprocess_skip(input1)
+        prp = self.preprocess_skip(skip_input)
         #print(prp.shape)
         states.append(prp)
-        return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
+        return self.cat(states[-(self.node_num+1):]), prp # channels number is multiplier "4" * C "C_curr"
     
     def _init_alphas(self, alphas=None):
         if alphas is None:
@@ -152,7 +152,7 @@ class RCell(nn.Module):
 
 
 class UCell(nn.Module):
-    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,edges_num=2, ops_num=5, node_num=4,binary=True, affine=False,init_alphas=None) -> None:
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,init_alphas=None,edges_num=2, ops_num=5, node_num=4,binary=True, affine=False) :
         super(UCell, self).__init__()
         self.edges_num = edges_num
         self.ops_num = ops_num
@@ -170,23 +170,23 @@ class UCell(nn.Module):
         
         self._init_alphas(init_alphas)
         self.sum = Sum()
-        self.concat = Cat()
+        self.cat = Cat()
 
-    def forward(self, input0, input1):
+    def forward(self, input0, input1, skip_input):
         s0 = self.preprocess0(input0)
         s1 = self.preprocess1(input1)
         #print(s0.shape, s1.shape)
         states = [s0, s1]
         offset = 0
         for i in range(self.node_num):
-            s = self.sum(self.edges[offset+j](h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states[-2:])) #offset +j = 2
+            s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states[-2:])]) #offset +j = 2
             offset += 2
             states.append(s)
-        prp = self.preprocess_skip(input1)
+        prp = self.preprocess_skip(skip_input)
         #print(prp.shape)
         states.append(prp)
         #states.append(input1)
-        return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
+        return self.cat(states[-(self.node_num+1):]), prp # channels number is multiplier "4" * C "C_curr"
     
     def _init_alphas(self, alphas=None):
         if alphas is None:

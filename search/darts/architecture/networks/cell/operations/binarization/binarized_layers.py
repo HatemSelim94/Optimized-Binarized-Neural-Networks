@@ -1,10 +1,10 @@
 import torch.nn as nn
 import torch.nn.functional as F
-from .basic import Binarization1 as Binarizatoin
+from .basic import Binarization1 as Binarization
 
 
 
-binarize = Binarizatoin.apply
+binarize = Binarization.apply
 
 
 class BinActivation(nn.Module):

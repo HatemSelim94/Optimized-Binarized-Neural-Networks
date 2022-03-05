@@ -1,8 +1,11 @@
+import types
 import torch
 import torch.nn as nn
 import numpy as np 
-from .binarization import BinConvTranspose2d, BinConv2d, BinActivation
-from .search_operations import Cat, Sum, Bilinear, Identity
+import sys
+sys.path.append('search/darts/')
+from architecture.networks.cell.operations.binarization.binarized_layers import BinConvTranspose2d, BinConv2d, BinActivation
+from architecture.networks.cell.operations.search_operations import Cat, Sum, Bilinear, Identity
 
 def identity_ops_forward_hook(mod, input, output):
     mod.__ops = 0
@@ -47,13 +50,19 @@ def sum_ops_forward_hook(mod, input, output):
             ops = np.prod(output.shape)*(list_len-1)
         else:
             ops = np.prod(output.shape)*(bin_inputs - 1)/64 + np.prod(output.shape)*(list_len-bin_inputs)
+    else:
+        #wrong shortcut
+        #print(len(list(input[0])))
+        #print('Sum ops Warning!: line 55 in ops_info')
+        ops = np.prod(output.shape)*(5)
+
     mod.__ops = ops*1e-6 
 
 def binarization_ops_forward_hook(mod, input, output):
-    mod.__ops = np.pord(output.shape)*1e-6
+    mod.__ops = np.prod(output.shape)*1e-6
 
 def tanh_ops_forward_hook(mod, input, output):
-    mod.__ops = np.pord(output.shape)* 1e-6
+    mod.__ops = np.prod(output.shape)* 1e-6
 
 def bn_ops_forward_hook(mod, input, output):
     ops = np.prod(output.shape)
@@ -81,8 +90,8 @@ def get_total_ops(net):
     total_ops = total_ops[0]
     return total_ops
 
-def ops_counter(net, dummy_input_shape):
-    dummy = torch.randn(dummy_input_shape)
+def ops_counter(net, dummy_input_shape, device='cuda'):
+    dummy = torch.randn(dummy_input_shape).to(device)
     handles = []
     def attach_hooks(net):
         for mod in net.children():
@@ -100,7 +109,7 @@ def ops_counter(net, dummy_input_shape):
                 handles.append(mod.register_forward_hook(identity_ops_forward_hook))
             elif isinstance(mod, nn.BatchNorm2d):
                 handles.append(mod.register_forward_hook(bn_ops_forward_hook))
-            elif isinstance(mod, nn.Tanh):
+            elif isinstance(mod, nn.Hardtanh):
                 handles.append(mod.register_forward_hook(tanh_ops_forward_hook))
             elif isinstance(mod, Cat):
                 handles.append(mod.register_forward_hook(cat_ops_forward_hook))
@@ -111,7 +120,8 @@ def ops_counter(net, dummy_input_shape):
             elif isinstance(mod, BinActivation):
                 handles.append(mod.register_forward_hook(binarization_ops_forward_hook))
             else:
-                print(f'Warning: {type(mod)} ops is not defined')
+                #print(f'Warning: {type(mod)} ops is not defined')
+                pass
             attach_hooks(mod)
     attach_hooks(net)
     net(dummy) 

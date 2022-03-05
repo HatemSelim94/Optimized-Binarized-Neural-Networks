@@ -66,7 +66,7 @@ class Identity(nn.Module):
 
 class Bilinear(nn.Upsample):
     def __init__(self, size= None, scale_factor = 2, mode: str = 'bilinear', align_corners = False):
-        super(Bilinear, self).__init__(size, scale_factor, mode, align_corners)
+        super(Bilinear, self).__init__(scale_factor=scale_factor, mode=mode, align_corners=align_corners)
 
 
 class AvgPool(nn.Module):
