@@ -42,11 +42,11 @@ def train_arch(model_dataloader, arch_dataloader, arch, criterion, optimizer, ep
             loss = criterion(outputs, trgts) # mean
             loss.backward()
             optimizer.step() # [-1, 1] (conv)
-            train_loss += (loss.item()*imgs.shape[0]) # loss per image
-            predictions = torch.argmax(torch.softmax(outputs, dim=1), dim=1)
-            metric.update(trgts.cpu().numpy(), predictions.cpu().numpy())
-        mean_iou, _ = metric.get_iou()
-        train_loss /= len(model_dataloader.dataset) # mean loss (per image)
+            #train_loss += (loss.item()*imgs.shape[0]) # loss per image
+            #predictions = torch.argmax(torch.softmax(outputs, dim=1), dim=1)
+            #metric.update(trgts.cpu().numpy(), predictions.cpu().numpy())
+        #mean_iou, _ = metric.get_iou()
+        #train_loss /= len(model_dataloader.dataset) # mean loss (per image)
     else:
         mean_iou = None 
         train_loss = None
@@ -70,7 +70,7 @@ def train_arch(model_dataloader, arch_dataloader, arch, criterion, optimizer, ep
                 #metric.update(trgts.cpu().numpy(), predictions.cpu().numpy())
                 #mean_iou, _ = metric.get_iou()
                 #train_loss /= len(model_dataloader.dataset) # mean loss (per image)
-    return mean_iou, train_loss
+    #return round(mean_iou*100, 2), train_loss
 
 
 def train(train_queue, model, criterion, optimizer, lr, epoch, num_of_classes=3,device='cuda'):
@@ -103,7 +103,7 @@ def train(train_queue, model, criterion, optimizer, lr, epoch, num_of_classes=3,
   mean_iou, _ = metric.get_iou()
   train_loss /= len(train_queue.dataset)
 
-  return mean_iou,loss
+  return round(mean_iou*100, 2),loss
 
 
 def infer(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
@@ -125,7 +125,7 @@ def infer(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
     miou, _ = metric.get_iou()
       #if step % args.report_freq == 0:
     val_loss /= len(valid_queue.dataset)
-    return miou, loss
+    return round(miou*100, 2), loss
   
 class lr_function:
   def __init__(self, epochs):
@@ -176,11 +176,14 @@ class Tracker:
         assert epochs != 0
         self.epochs = epochs
         self.folds = folds
-    def print(self, t_loss,t_iou, v_loss=None, v_iou=None, epoch=None, fold=None):
+    def print(self, t_loss,t_iou, v_loss=None, v_iou=None, epoch=None, fold=None, mode=None):
         if self.folds:
             print(f'Fold {fold} [{100*((fold+1)/self.folds):0.0f}%]   Epoch {epoch} [{100*((epoch+1)/self.epochs):0.0f}%]')
             print(f'Training:   Loss:   {t_loss:0.2f}   IoU: {t_iou:0.2f}')
             print(f'Validation:   Loss: {v_loss:0.2f}   IoU: {v_iou:0.2f}\n')
+        elif mode == 'val':
+            print(f'Epoch {epoch} [{100*((epoch+1)/self.epochs):0.0f}%]')
+            print(f'Validation:   Loss:   {v_loss:0.2f}   IoU: {v_iou:0.2f}\n')
         elif v_loss is not None:
             print(f'Epoch {epoch} [{100*((epoch+1)/self.epochs):0.0f}%]')
             print(f'Training:   Loss:   {t_loss:0.2f}   IoU: {t_iou:0.2f}')
@@ -203,20 +206,20 @@ class DataPlotter:
     __iou_train = 'Training Mean IoU'
     __iou_val = 'Validatoin Mean IoU'
     __epochs = 'Epochs'
-    def __init__(self, json_file_path=None) -> None:
+    def __init__(self, dir) -> None:
         self.data = {}
         self.data[self.__epochs] = []
         self.data[self.__iou_train] =[]
         self.data[self.__iou_val] =[]
         self.data[self.__loss_train] =[]
         self.data[self.__loss_val] =[]
-        self.file_path = json_file_path
+        self.file_path = dir
         self.loaded = False
-        if os.path.isfile(json_file_path+'_data.json'):
+        if os.path.isfile(dir+'data.json'):
             print('Warning! file already exits')
             self.load_json()
         else:
-            dir = '/'.join(json_file_path.split('/')[:-1])
+            #dir = '/'.join(json_file_path.split('/')[:-1])
             if not os.path.isdir(dir):
                 os.makedirs(dir)
     def store(self, epoch,train_loss, val_loss, train_mean_iou, val_mean_iou):
@@ -234,15 +237,15 @@ class DataPlotter:
     
     def save_as_json(self):
         if self.loaded:
-            with open(self.file_path+'_data_new.json', 'w', encoding='utf-8') as f:
+            with open(os.path.join(self.file_path, '_data_new.json'), 'w', encoding='utf-8') as f:
                 json.dump(self.data, f, ensure_ascii=False, indent=4)
         else:
-            with open(self.file_path+'_data.json', 'w', encoding='utf-8') as f:
+            with open(os.path.join(self.file_path, '_data.json'), 'w', encoding='utf-8') as f:
                 json.dump(self.data, f, ensure_ascii=False, indent=4)
     
     def load_json(self):
         self.loaded = True
-        with open(self.file_path+'_data.json','r' ,encoding='utf-8') as f:
+        with open(os.path.join(self.file_path, '_data_new.json'),'r' ,encoding='utf-8') as f:
             self.data = json.load(f)
 
     def plot(self, mode='loss', verpose = False, save=False, dpi=400, seaborn=True):
@@ -268,14 +271,15 @@ class DataPlotter:
             plt.xlabel(self.__epochs)
         elif mode == 'val':
             fig, ax = plt.subplots(1,2)
-            ax[0].plot(self.data[self.__epochs], self.data[self.__loss_val], label=self.__loss_val)
-            ax[1].plot(self.data[self.__epochs], self.data[self.__iou_val], label= self.__iou_val)
+            ax[0].plot(self.data[self.__epochs], self.data[self.__loss_val], label='Validation')
+            ax[1].plot(self.data[self.__epochs], self.data[self.__iou_val], label= 'Validation')
             ax[0].set_xlabel(self.__epochs)
             ax[1].set_xlabel(self.__epochs)
-            ax[0].set_ylabel(self.__loss_val)
-            ax[1].set_ylabel(self.__iou_val)
-            ax[0].legend()
-            ax[1].legend()
+            ax[0].set_ylabel('Loss')
+            ax[1].set_ylabel('Accuracy (%)')
+            ax[0].legend(loc=1)
+            ax[1].legend(loc=1)
+            plt.tight_layout()
             
         elif mode == 'all':
             fig, ax = plt.subplots(1,2)
@@ -288,7 +292,7 @@ class DataPlotter:
             ax[0].set_xlabel(self.__epochs)
             ax[1].set_xlabel(self.__epochs)
         if save:
-            plt.savefig(self.file_path+mode+'_plot.png', dpi =dpi)
+            plt.savefig(os.path.join(self.file_path,mode)+'_plot.png', dpi =dpi)
         if verpose:
             plt.show()
         plt.close('all')

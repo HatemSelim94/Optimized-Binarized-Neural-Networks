@@ -124,7 +124,8 @@ def ops_counter(net, dummy_input_shape, device='cuda'):
                 pass
             attach_hooks(mod)
     attach_hooks(net)
-    net(dummy) 
+    with torch.no_grad():
+        net(dummy) 
     total_ops = get_total_ops(net)
     for handle in handles:
         handle.remove()

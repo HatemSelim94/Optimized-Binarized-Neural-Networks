@@ -13,6 +13,8 @@ from .utilities.genotype import save_genotype, load_genotype
 class Network(nn.Module):
     def __init__(self, args):
         super(Network, self).__init__()
+        self.binary=args.binary
+        self.affine = args.affine
         self.nodes_num = args.nodes_num
         self.edge_num = args.edge_num
         self.ops_num = args.ops_num
@@ -21,7 +23,7 @@ class Network(nn.Module):
         self.cells = nn.ModuleList()
         self.alphas = [torch.empty((self.nodes_num*self.edge_num ,self.ops_num), requires_grad=True, device=args.device) for _ in range(3)]
         for i in range(3):
-            nn.init.constant_(self.alphas[0], 1/self.ops_num)
+            nn.init.constant_(self.alphas[i], 1/self.ops_num)
         self.first_layer = Stem(out_channels=self.initial_channels)
         
         c_prev_prev = self.initial_channels
@@ -39,15 +41,15 @@ class Network(nn.Module):
             else:
                 continue
             if cell_type =='r':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[1],self.initial_channels)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[1],self.initial_channels, 2,self.ops_num, self.nodes_num, self.binary, self.affine)
             elif cell_type == 'n':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[0])
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[0],1,2,self.ops_num, self.nodes_num, self.binary, self.affine)
             else:
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[2])
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[2], 2, self.ops_num, self.nodes_num,self.binary, self.affine)
             self.cells.append(NetConstructor.construct(cell_type, cell_specs))
             prev_cell = cell_type
             c_prev_prev = c_prev
-            c_prev = (4 * c) + self.initial_channels
+            c_prev = (self.nodes_num * c) + self.initial_channels
      
         self.upsample = Bilinear(scale_factor=2)
         self.last_layer = LastLayer(c_prev)
@@ -60,38 +62,21 @@ class Network(nn.Module):
         x = self.upsample(s1)
         x = self.last_layer(x)
         return x
-    
+    '''
     def forward_latency(self, x):
         output = 0
         for cell in self.cells:
             output += cell(x)
         return output
-
-    def forward_flops(self, x):
-        output = 0
-        for cell in self.cells:
-            output += cell.forward_flops(x)
-        return output
-
-    def forward_memory(self, x):
-        output = -1
-        for cell in self.cells:
-            output = max( output, cell.forward_memory(x))
-        return output
-    
-    def forward_params(self, x):
-        output = 0
-        for cell in self.cells:
-            output += cell.forward_params(x)
-        return output
-    
+    '''
     def load_genotype(self, dir=None):
         self.idx = load_genotype(dir)
 
-    def save_genotype(self, dir=None, epoch=0):
-        save_genotype(self.model.alphas,dir, epoch)
+    def save_genotype(self, dir=None, epoch=0, nodes=4):
+        save_genotype(self.model.alphas,dir, epoch,nodes=nodes)
     
-    def _loss(self, predictions, targets):
+    def _loss(self, inputs, targets):
+        predictions = self(inputs)
         loss = self.criterion(predictions, targets)
         return loss
     

@@ -5,13 +5,13 @@ from .networks.utilities.genotype import save_genotype
 class Architecture:
     def __init__(self, model, args):
         self.model = model
-        self.arch_optimizer = optim.Adam(list(self.model.alphas), lr=args.arch_optim_lr, 
-                                        betas=args.arch_optim_betas, eps=args.arch_optim_eps,
+        self.arch_optimizer = optim.Adam(self.model.alphas, lr=args.arch_optim_lr, 
+                                        betas=(args.arch_optim_beta0, args.arch_optim_beta1), eps=args.arch_optim_eps,
                                         weight_decay=args.arch_optim_weight_decay, amsgrad=args.arch_optim_amsgrad)
     
     def step(self, arch_inputs, arch_targets):
         self.arch_optimizer.zero_grad()
-        loss = self._backward_step(arch_inputs, arch_targets)
+        self._backward_step(arch_inputs, arch_targets)
         self.arch_optimizer.step()
         #return loss * arch_inputs.shape[0]
     
@@ -20,7 +20,7 @@ class Architecture:
         loss.backward()
         #return loss.item()
     
-    def save_genotype(self, dir=None, epoch=0):
-        save_genotype(self.model.alphas, dir, epoch)
+    def save_genotype(self, dir=None, epoch=0, nodes=4):
+        save_genotype(self.model.alphas, dir, epoch, nodes)
 
         

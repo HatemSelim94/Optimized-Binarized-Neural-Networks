@@ -8,14 +8,14 @@ from operator import itemgetter
 
 
 class Edge(nn.Module):
-    def __init__(self, C, stride, ops_num, cell_type, objs=None) -> None:
+    def __init__(self, C, stride, ops_num, cell_type, affine, objs=None) -> None:
         super(Edge, self).__init__()
         self.ops = nn.ModuleList()
         primitives = OperationsConstructor.get_primitives(cell_type)
         operations = OperationsConstructor.get_ops(cell_type)
         for i, primitive in enumerate(primitives):
             if i < ops_num:
-                self.ops.append(operations[primitive](C, stride, affine=False))
+                self.ops.append(operations[primitive](C, stride, affine=affine))
                 #print(self.ops[-1])
         self.C = C
         self.stride = stride
@@ -44,7 +44,7 @@ class Edge(nn.Module):
             else:
                 output['images'] = self.sum(w*op(x) for id, (w, op) in enumerate(zip(weights, self.ops)) if id in idx)
             return output
-
+'''
     def forward_latency(self, x, weights, idx=None):
         if idx is None:
             return self.sum(w*op.latency(x) for w, op in zip(weights, self.ops))
@@ -222,3 +222,4 @@ if __name__ == '__main__':
     out = e(dict_inp, torch.nn.functional.softmax(w,-1))
     #out = e(inp, torch.nn.functional.softmax(w,-1), [0])
     print(out)
+'''

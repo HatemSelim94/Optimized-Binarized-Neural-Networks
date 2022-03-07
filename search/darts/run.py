@@ -1,3 +1,4 @@
+import shutil
 import sys
 sys.path.append("/home/hatem/Projects/server/final_repo/final_repo")
 import torch
@@ -22,12 +23,12 @@ parser.add_argument('--num_of_classes', type=int, default=3)
 parser.add_argument('--train_subset', type=int, default=300)
 parser.add_argument('--val_subset', type=int, default=200)
 parser.add_argument('--arch_optim',type=str, default='adam')
-parser.add_argument('--arch_optim_lr', type=float, default=0.001)
-parser.add_argument('--arch_optim_betas', type=tuple, default=(0.9, 0.999))
+parser.add_argument('--arch_optim_lr', type=float, default=0.01)
+parser.add_argument('--arch_optim_beta0', type=float, default=0.9)
+parser.add_argument('--arch_optim_beta1', type=float, default=0.999)
 parser.add_argument('--arch_optim_eps', type=float, default=1e-08)
 parser.add_argument('--arch_optim_weight_decay', type=float, default=5e-4)
 parser.add_argument('--arch_optim_amsgrad', type=bool, default=False)
-parser.add_argument('--init_epochs', type=int, default=20)
 parser.add_argument('--epochs', type=int, default=40)
 parser.add_argument('--network_optim', type=str, default='adamax')
 parser.add_argument('--network_optim_bin_lr', type=float, default=1e-3)
@@ -47,6 +48,8 @@ parser.add_argument('--device', type=str, default='cuda')
 parser.add_argument('--seed', type=int, default=4)
 parser.add_argument('--arch_start', type=int, default=20)
 parser.add_argument('--both', type=bool, default=False)
+parser.add_argument('--affine', type=bool, default=False)
+parser.add_argument('--binary', type=bool, default=True)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -54,6 +57,10 @@ torch.cuda.empty_cache()
 
 
 def main():
+    try:
+        shutil.rmtree(os.path.join(args.experiment_path, args.experiment_name))
+    except:
+        pass
     if not torch.cuda.is_available():
         sys.exit(1)
     criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, weight=KittiDataset.loss_weights_3, label_smoothing=0.2)
@@ -95,26 +102,19 @@ def main():
     #scheduler = torch.optim.lr_scheduler.StepLR(optimizer, 10,0.9)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step:((step/args.epochs))**2)
     
-    data = DataPlotter(args.experiment_path+args.experiment_name)
+    data = DataPlotter(os.path.join(args.experiment_path, args.experiment_name))
     tracker = Tracker(args.epochs)
     tracker.start()
     for epoch in range(args.epochs):
         # training
         train_arch(train_loader, val_loader, arch, criterion, optimizer, epoch, arch_start=args.arch_start,both=args.both)
-        #genotype_plotter.store_genome(model.genotype(), epoch)
-        #tracker.print(train_loss, train_mean_iou, epoch)
-        #data.store(epoch, train_loss, 0, train_mean_iou, 0)
-        #lr = scheduler.get_last_lr()
-        #print(f'lrs: {lr}')
-        #if epoch > args.arch_start:
-        #    data.save_as_json()
-        #    data.plot('train', save=True)
         scheduler.step()
         miou, loss= infer(val_loader, net, criterion)
+        tracker.print(0,0, loss, miou, epoch=epoch, mode='val')
         data.store(epoch, 0, loss, 0, miou)
         data.plot(mode='val', save=True, seaborn=False)
-        if epoch > args.arch_start:
-            arch.save_genotype(os.path.join(args.experiment_path, args.experiment_name, f'genotype_{epoch}'), epoch)
+        if epoch > args.arch_start-1:
+            arch.save_genotype(os.path.join(args.experiment_path, args.experiment_name), epoch, nodes=args.nodes_num)
     data.save_as_json()
     tracker.end()
   

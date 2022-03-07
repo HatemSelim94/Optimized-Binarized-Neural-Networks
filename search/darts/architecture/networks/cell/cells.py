@@ -20,7 +20,7 @@ class NCell(nn.Module):
 
         for _ in range(node_num):
             for _ in range(edges_num):
-                self.edges.append(Edge(C, stride, ops_num, cell_type='n'))
+                self.edges.append(Edge(C, stride, ops_num, 'n', affine))
         
         self._init_alphas(init_alphas)
         self.sum = Sum()
@@ -37,7 +37,7 @@ class NCell(nn.Module):
             s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states[-2:])]) #offset +j = 2
             offset += 2
             states.append(s)
-        states.append(input1)
+        states.append(skip_input)
         return self.cat(states[-(self.node_num+1):]), skip_input # channels number is multiplier "4" * C "C_curr"
     
     def _init_alphas(self, alphas=None):
@@ -46,7 +46,7 @@ class NCell(nn.Module):
             nn.init.constant_(self.alphas, 1/self.ops_num)
         else:
             self.alphas = alphas
-    
+    '''
     def forward_memory(self, input0, input1):
         s0 = self.preprocess0(input0)
         s1 = self.preprocess0(input1)
@@ -74,7 +74,7 @@ class NCell(nn.Module):
             states.append(s)
         states.append(input1)
         return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
-
+'''
 
 class RCell(nn.Module):
     def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,init_alphas=None,skip_channels=64,edges_num=2, ops_num=5, node_num=4,binary=True, affine=False) -> None:
@@ -92,14 +92,14 @@ class RCell(nn.Module):
         for n in range(node_num):
             for e in range(edges_num):
                 stride = 2 if n+e <= 1 else 1
-                self.edges.append(Edge(C, stride, ops_num,'r'))
+                self.edges.append(Edge(C, stride, ops_num,'r',affine))
         
         self._init_alphas(init_alphas)
         self.sum = Sum()
         self.cat = Cat()
 
     def forward(self, input0, input1, skip_input):
-        _, c,_,_ = input1.shape
+        #_, c,_,_ = input1.shape
         s0 = self.preprocess0(input0)
         s1 = self.preprocess1(input1)
         #print(s0.shape, s1.shape)
@@ -121,7 +121,7 @@ class RCell(nn.Module):
             nn.init.constant_(self.alphas, 1/self.ops_num)
         else:
             self.alphas = alphas
-    
+    '''
     def forward_memory(self, input0, input1):
         s0 = self.preprocess0(input0)
         s1 = self.preprocess0(input1)
@@ -149,7 +149,7 @@ class RCell(nn.Module):
             states.append(s)
         states.append(input1)
         return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
-
+'''
 
 class UCell(nn.Module):
     def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,init_alphas=None,edges_num=2, ops_num=5, node_num=4,binary=True, affine=False) :
@@ -166,7 +166,7 @@ class UCell(nn.Module):
         for n in range(node_num):
             for e in range(edges_num):
                 stride = 2 if n+e <= 1 else 1
-                self.edges.append(Edge(C, stride, ops_num, 'u'))
+                self.edges.append(Edge(C, stride, ops_num, 'u', affine))
         
         self._init_alphas(init_alphas)
         self.sum = Sum()
@@ -194,7 +194,7 @@ class UCell(nn.Module):
             nn.init.constant_(self.alphas, 0.005)
         else:
             self.alphas = alphas
-    
+    '''
     def forward_memory(self, input0, input1):
         s0 = self.preprocess0(input0)
         s1 = self.preprocess0(input1)
@@ -222,7 +222,7 @@ class UCell(nn.Module):
             states.append(s)
         states.append(input1)
         return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
-
+'''
 
 class LastLayer(nn.Module):
     def __init__(self, in_channels, classes_num=3, binary=True):
