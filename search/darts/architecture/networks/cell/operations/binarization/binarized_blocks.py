@@ -200,6 +200,7 @@ class ConvBnHTanhBin (nn.Module):
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         self.htanh = nn.Hardtanh(-1, 1, True)
         self.binarize = BinActivation()
+        self.latency_table={}
 
     def forward(self, x):
         x = self.conv(x)
@@ -255,12 +256,16 @@ class ConvBnHTanhBin (nn.Module):
                 plot_weight(self.conv.weight)
 
     def get_config(self):
-        return {'in_channels':self.in_channels, 'out_channels':self.out_channels, 'kernel_size':self.kernel_size, 'stride':self.stride, 'padding':self.padding, 'dilation':self.dilation}
+        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size, 'stride':self.conv.stride, 'padding':self.conv.padding, 'dilation':self.conv.dilation, 'affine':self.batchnorm.affine}
+    
+    @classmethod
+    def model(cls, config):
+        return cls(**config)
 
 
 class TConvBnHTanhBin (nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine = True):
-        super(ConvBnHTanhBin, self).__init__()
+        super(TConvBnHTanhBin, self).__init__()
         #self.ops = nn.Sequential
         self.conv = BinConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine )
@@ -321,8 +326,11 @@ class TConvBnHTanhBin (nn.Module):
                 plot_weight(self.conv.weight.sign())
 
     def get_config(self):
-        return {'in_channels':self.in_channels, 'out_channels':self.out_channels, 'kernel_size':self.kernel_size, 'stride':self.stride, 'padding':self.padding, 'dilation':self.dilation}
-
+        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size, 'stride':self.conv.stride, 'padding':self.conv.padding, 'dilation':self.conv.dilation, 'affine':self.batchnorm.affine}
+    
+    @classmethod
+    def model(cls, config):
+        return cls(**config)
 
 class BinConvBn(nn.Module):
     '''

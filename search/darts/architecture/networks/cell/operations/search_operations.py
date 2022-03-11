@@ -7,43 +7,101 @@ from .latency import get_latency
 from .memory import MemoryCounter
 from .flops import FlopsCounter
 from .binarization.binarized_blocks import BinConvBnHTanh, BinTConvBnHTanh, BinConvBn
+from .binarization.binarized_blocks import ConvBnHTanhBin, TConvBnHTanhBin 
+from .fp.fp_block import FpConvBnHardtanh, FpTConvBnHardtanh
+
+
+class FpConv1x1(FpConvBnHardtanh):
+    def __init__(self, in_channels, out_channels, bn_layer=True, activation=True, affine=True, kernel_size=1, padding=0, dilation=1, padding_mode='zeros', stride=1):
+        super(FpConv1x1, self).__init__(in_channels, out_channels, bn_layer, activation, affine, kernel_size, padding, dilation, padding_mode, stride)
+        self.edge_layer = True
+
+
+class FpConv3x3(FpConvBnHardtanh):
+    def __init__(self, in_channels, out_channels, bn_layer=True, activation=True, affine=True, kernel_size=3, padding=1, dilation=1, padding_mode='zeros', stride=1):
+        super(FpConv3x3, self).__init__(in_channels, out_channels, bn_layer, activation, affine, kernel_size, padding, dilation, padding_mode, stride)
+        self.edge_layer = True
+
+
+class FpDilConv3x3(FpConvBnHardtanh):
+    def __init__(self, in_channels, out_channels, bn_layer=True, activation=True, affine=True, kernel_size=3, padding=0, dilation=1, padding_mode='zeros', stride=1):
+        super(FpDilConv3x3, self).__init__(in_channels, out_channels, bn_layer, activation, affine, kernel_size, padding, dilation, padding_mode, stride)
+        self.edge_layer = True
+
+class FpTConv1x1(FpTConvBnHardtanh):
+    def __init__(self, in_channels, out_channels, bn_layer=True, activation=True, affine=True, kernel_size=1, padding=0, dilation=1, padding_mode='zeros', stride=1, output_padding=1):
+        super(FpTConv1x1, self).__init__(in_channels, out_channels, bn_layer, activation, affine, kernel_size, padding, dilation, padding_mode, stride, output_padding)
+        self.edge_layer = True
+
+
+class FpTConv3x3(FpTConvBnHardtanh):
+    def __init__(self, in_channels, out_channels, bn_layer=True, activation=True, affine=True, kernel_size=3, padding=0, dilation=1, padding_mode='zeros', stride=1, output_padding=1):
+        super(FpTConv3x3, self).__init__(in_channels, out_channels, bn_layer, activation, affine, kernel_size, padding, dilation, padding_mode, stride, output_padding)
+        self.edge_layer = True
+
+
+class FpTConv5x5(FpTConvBnHardtanh):
+    def __init__(self, in_channels, out_channels, bn_layer=True, activation=True, affine=True, kernel_size=5, padding=0, dilation=1, padding_mode='zeros', stride=1, output_padding=1):
+        super(FpTConv5x5, self).__init__(in_channels, out_channels, bn_layer, activation, affine, kernel_size, padding, dilation, padding_mode, stride, output_padding)
+        self.edge_layer = True
+
+
+class FpDilTConv3x3(FpTConvBnHardtanh):
+    def __init__(self, in_channels, out_channels, bn_layer=True, activation=True, affine=True, kernel_size=3, padding=0, dilation=1, padding_mode='zeros', stride=1, output_padding=1):
+        super(FpDilTConv3x3, self).__init__(in_channels, out_channels, bn_layer, activation, affine, kernel_size, padding, dilation, padding_mode, stride, output_padding)
+        self.edge_layer = True
+
+
+class FpConv3x3bn(FpConvBnHardtanh):
+    def __init__(self, in_channels, out_channels, bn_layer=True, activation=False, affine=True, kernel_size=1, padding=0, dilation=1, padding_mode='zeros', stride=1):
+        super(FpConv3x3bn, self).__init__(in_channels, out_channels, bn_layer, activation, affine, kernel_size, padding, dilation, padding_mode, stride)
+        self.edge_layer = True
+
+
 
 class BinConvT1x1(BinTConvBnHTanh):
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=2, padding=0, dilation=1, affine=True):
         super(BinConvT1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine)
+        self.edge_layer = True
 
 
 class BinConvT3x3(BinTConvBnHTanh):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=2, padding=1, dilation=1, affine=True):
         super(BinConvT3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine)
+        self.edge_layer = True
 
 
 class BinConvT5x5(BinTConvBnHTanh):
     def __init__(self, in_channels, out_channels, kernel_size=5, stride=2, padding=1, dilation=1, affine=True):
         super(BinConvT5x5, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine)
+        self.edge_layer = True
 
 
 class BinDilConv3x3(BinConvBnHTanh):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=2, dilation=2,affine=True):
         super(BinDilConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine)
+        self.edge_layer = True
 
 
 class BinConv1x1(BinConvBnHTanh):
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True):
         super(BinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine)
+        self.edge_layer=True
 
-class BinConv1x1(BinConvBn):
+class BinConvbn1x1(BinConvBn):
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True):
-        super(BinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine)
+        super(BinConvbn1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine)
 
 class BinConv3x3(BinConvBnHTanh):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1, affine=True):
         super(BinConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine)
+        self.edge_layer = True
 
 
 class Identity(nn.Module):
     def __init__(self):
         super(Identity, self).__init__()
+        self.edge_layer = True
     
     def forward(self, x):
         return x
@@ -77,6 +135,7 @@ class AvgPool(nn.Module):
         self.avgpool = nn.AvgPool2d(kernel_size, stride, padding)
         self.batchnorm = nn.BatchNorm2d(in_channels, affine=affine)
         self.in_channels = in_channels
+        self.edge_layer = True
     
     def forward(self, x):
         x = self.avgpool(x)
@@ -140,6 +199,7 @@ class MaxPool(nn.Module):
         self.maxpool = nn.MaxPool2d(kernel_size, stride, padding,dilation)
         self.batchnorm = nn.BatchNorm2d(in_channels, affine=affine)
         self.in_channels = in_channels
+        self.edge_layer = True
     
     def forward(self, x):
         #print(x.shape)

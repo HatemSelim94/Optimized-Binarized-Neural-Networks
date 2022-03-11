@@ -1,4 +1,4 @@
-from cProfile import label
+import shutil
 import random
 from tkinter.messagebox import NO
 import numpy as np
@@ -7,8 +7,53 @@ import json
 import os
 import matplotlib.pyplot as plt
 from processing import SegMetrics
+from .ops_info import ops_counter
+from .param_size import params_size_counter
+from .memory_counter import max_mem_counter
+from .latency import get_latency
 
 
+def clean_dir(args):
+    try:
+        shutil.rmtree(os.path.join(args.experiment_path, args.experiment_name))
+    except:
+        pass
+    try:
+        os.remove(os.path.join(args.experiment_path, args.experiment_name))
+    except:
+        pass
+
+def value_to_string(value, unit=None, precision=2):
+    if (value *1e-9)//1 > 0:
+            output =  f'{round(value*1e-9, precision)} G'
+    elif (value *1e-6)//1 > 0:
+            output = f'{round(value*1e-6, precision)} M'
+    elif (value *1e-3)//1 >0:
+            output = f'{round(value*1e-3, precision)} K'
+    else:
+            output = f'{round(value, precision)} '
+    if unit is not None:
+        output += unit
+    return output
+
+def model_info(net, input_shape, save=False, dir=None, verbose=True):
+    gops = ops_counter(net, input_shape)
+    max_mem = max_mem_counter(net, input_shape)
+    model_size = value_to_string(params_size_counter(net, input_shape),unit='B')
+    latency_ms, fps = get_latency(net, input_shape)
+    if verbose:
+        print('\n Model Info:')
+        print(f'     OPS: {gops} x10⁶')
+        print(f'     Maximum Memory: {max_mem} MB')
+        print(f'     Model Size: {model_size}')
+        print(f'     Latency: {latency_ms} ms')
+        print(f'     FPS: {fps}')
+    if save:
+        info = {'latency_ms': latency_ms, 'fps':fps, 'GOPS':gops, 'max_mem':max_mem, 'model_size':model_size}
+        os.makedirs(dir, exist_ok=True)
+        filename = os.path.join(dir, 'model_info')
+        with open(filename+'.json', 'w') as f:
+            json.dump(info, f) 
 
 def set_seeds(seed=4):
     torch.backends.cudnn.enabled = True
@@ -315,3 +360,15 @@ def save_model(model, epoch,scheduler, best_val_mean_iou, experiment_path, check
         'val_iou': best_val_mean_iou
     }, PATH)
     return PATH
+
+
+def get_losses(net, binary=True):
+    ops_loss = 0
+    params_loss = 0
+    latency_loss = 0
+    cells = net.cells if binary else net.fp_cells
+    for cell in cells:
+        ops_loss += cell.forward_ops()
+        params_loss += cell.forward_params()
+        latency_loss += cell.forward_latency()
+    return ops_loss, params_loss, latency_loss

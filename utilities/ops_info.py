@@ -12,7 +12,8 @@ def identity_ops_forward_hook(mod, input, output):
 
 
 def binconv_ops_forward_hook(mod, input, output): # weight binarization is not included
-    input_binarization_ops = np.prod(input[0].shape)
+    #input_binarization_ops = np.prod(input[0].shape)
+    input_binarization_ops = 0
     ops = np.prod(mod.weight.shape)
     ops *= np.prod(output.shape[2:])
     ops *= output.shape[0]
@@ -20,7 +21,8 @@ def binconv_ops_forward_hook(mod, input, output): # weight binarization is not i
     mod.__ops = (ops+input_binarization_ops)*1e-6
 
 def bintconv_ops_forward_hook(mod, input, output): # same as binconv. weight binarization is not included
-    input_binarization_ops = np.prod(input[0].shape)
+    #input_binarization_ops = np.prod(input[0].shape)
+    input_binarization_ops = 0
     ops = np.prod(mod.weight.shape)
     ops *= np.prod(output.shape[2:])
     ops *= output.shape[0]
@@ -34,7 +36,7 @@ def cat_ops_forward_hook(mod, input, output):
     mod.__ops = 0
 
 def bilinear_ops_forward_hook(mod, input, output):
-    mod.__ops = np.prod(output.shape) * 11
+    mod.__ops = np.prod(output.shape) * 11 *1e-6
     
 def sum_ops_forward_hook(mod, input, output):
     bin_inputs = 0
@@ -129,4 +131,4 @@ def ops_counter(net, dummy_input_shape, device='cuda'):
     total_ops = get_total_ops(net)
     for handle in handles:
         handle.remove()
-    return total_ops # mega ops
+    return round(total_ops) # giga ops

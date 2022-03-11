@@ -6,7 +6,7 @@ from torch.utils.data import Subset
 import argparse
 import os
 
-from architecture import Architecture, Network
+from architecture import Architecture, Network_kd
 from processing import Transformer, DataSets
 from processing.datasets import CityScapes, KittiDataset
 from utilities import infer, set_seeds, Clipper, DataPlotter, Tracker, train_arch, model_info, clean_dir
@@ -48,7 +48,7 @@ parser.add_argument('--seed', type=int, default=4)
 parser.add_argument('--arch_start', type=int, default=20)
 parser.add_argument('--both', type=bool, default=False)
 parser.add_argument('--affine', type=bool, default=False)
-parser.add_argument('--binary', type=bool, default=True)
+parser.add_argument('--teacher_nodes_num', type=int, default=2)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -61,7 +61,7 @@ def main():
         sys.exit(1)
     criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, weight=KittiDataset.loss_weights_3, label_smoothing=0.2)
     criterion = criterion.to(args.device)  
-    net = Network(args).to(args.device)
+    net = Network_kd(args).to(args.device)
     net._set_criterion(criterion)
     model_info(net,(1, 3, args.image_size, args.image_size), save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
     arch = Architecture(net, args)

@@ -4,7 +4,29 @@ import torch.nn as nn
 from graphviz import Digraph
 import os
 
-def plot_cell(idx,type, dir,epoch, view=False, nodes=4):
+
+NR_PRIMITIVES = [
+    'max_pool_3x3',
+    'avg_pool_3x3',
+    'conv_1x1',
+    'conv_3x3',
+    'dil_conv_3x3_r4',
+    'skip_connect'
+]
+
+UP_PRIMITIVES = [
+    'tconv_1x1',
+    'tconv_3x3',
+    'tconv_5x5',
+    'dil_tconv_3x3_r4',
+    'dil_tconv_3x3_r6',
+    'dil_tconv_3x3_r8'
+]
+
+
+
+def plot_cell(idx,cell_type, dir,epoch, view=False, nodes=4):
+    ops = NR_PRIMITIVES if cell_type in ['n','r'] else UP_PRIMITIVES
     g = Digraph(
       format='pdf',
       edge_attr=dict(fontsize='20', fontname="times"),
@@ -32,7 +54,8 @@ def plot_cell(idx,type, dir,epoch, view=False, nodes=4):
             else:    
                 source = f'n{node-2}'
             destination = f'n{end-2}'
-            g.edge(source, destination, label=f'{counter} op{idx[node+j-2][0]}', color='gray')
+            #g.edge(source, destination, label=f'{counter} op{idx[node+j-2][0]}', color='gray')
+            g.edge(source, destination, label=f'{ops[idx[node+j-2][0]]}', color='gray')
             counter +=1
         start +=1
         end += 1
@@ -40,7 +63,7 @@ def plot_cell(idx,type, dir,epoch, view=False, nodes=4):
     g.node("c_{k}", fillcolor='palegoldenrod')
     for i in range(1,nodes+1):
         g.edge(f'n{i}', "c_{k}", fillcolor="gray")
-    filefolder = f'darts_relaxed_cell_modified_{type}'
+    filefolder = f'darts_relaxed_cell_modified_{cell_type}'
     filepath = os.path.join(dir, filefolder)
     if not os.path.exists(filepath): 
         os.makedirs(filepath)
@@ -55,8 +78,7 @@ def save_cell_idx(cell_idx:torch.Tensor, type, dir, epoch=0):
         json.dump(cell_idx.tolist(),f)
     
 
-def save_genotype(alphas, dir, epoch=0, nodes=4):
-    types = ['n','r','u']
+def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u']):
     def best_pick(alphas):
         best_alphas = []
         for alpha in alphas:

@@ -21,8 +21,8 @@ def get_total_param_size(net):
     total_params = total_params[0]
     return total_params
 
-def params_size_counter(net, dummy_input_shape):
-    dummy = torch.randn(dummy_input_shape)
+def params_size_counter(net, dummy_input_shape, device='cuda'):
+    dummy = torch.randn(dummy_input_shape, device=device)
     handles = []
     def attach_hooks(net):
         leaf_layers = 0
@@ -36,7 +36,7 @@ def params_size_counter(net, dummy_input_shape):
     total_params = get_total_param_size(net)
     for handle in handles:
         handle.remove()
-    return total_params # size in megabytes
+    return total_params # bytes
 
 class Layer(nn.Module):
     def __init__(self) -> None:

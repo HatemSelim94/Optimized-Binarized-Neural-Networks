@@ -21,6 +21,6 @@ class Architecture:
         #return loss.item()
     
     def save_genotype(self, dir=None, epoch=0, nodes=4):
-        save_genotype(self.model.alphas, dir, epoch, nodes)
+        save_genotype(self.model.alphas, dir, epoch, nodes, self.model.unique_cells)
 
         

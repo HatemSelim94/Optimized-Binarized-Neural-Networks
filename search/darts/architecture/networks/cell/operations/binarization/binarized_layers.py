@@ -17,7 +17,7 @@ class BinActivation(nn.Module):
 class BinConv2d(nn.Conv2d):
     def __init__(self, in_channels: int, out_channels: int, kernel_size, stride = 1, padding = 0, dilation = 1, groups: int = 1, bias: bool = False, padding_mode: str = 'zeros', device=None, dtype=None):
         if dilation ==1:
-            padding = [kernel_size[0]//2, kernel_size[1]//2]
+            padding = [kernel_size//2, kernel_size//2]
         else:
             padding = [padding, padding]
         super(BinConv2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias, padding_mode, device, dtype)

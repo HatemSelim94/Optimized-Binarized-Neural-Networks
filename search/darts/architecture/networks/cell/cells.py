@@ -1,10 +1,11 @@
+from matplotlib import offsetbox
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .operations.search_operations import BinConv1x1
+from .operations.search_operations import BinConvbn1x1, BinConvT1x1
 
-from .operations import Sum, Preprocess, Cat
+from .operations import Sum, Preprocess, FpPreprocess,Cat
 from .edge import Edge
 
 
@@ -14,13 +15,15 @@ class NCell(nn.Module):
         self.edges_num = edges_num
         self.ops_num = ops_num
         self.node_num = node_num
-        self.preprocess0 = Preprocess.operations(prev_cell_type,0,C_prev_prev, C, affine)
-        self.preprocess1 = Preprocess.operations(prev_cell_type,1,C_prev, C, affine)
+        self.binary = binary
+        preprocess = Preprocess if binary else FpPreprocess
+        self.preprocess0 = preprocess.operations(prev_cell_type,0,C_prev_prev, C, affine)
+        self.preprocess1 = preprocess.operations(prev_cell_type,1,C_prev, C, affine)
         self.edges = nn.ModuleList()
 
         for _ in range(node_num):
             for _ in range(edges_num):
-                self.edges.append(Edge(C, stride, ops_num, 'n', affine))
+                self.edges.append(Edge(C, stride, ops_num, 'n', affine, self.binary))
         
         self._init_alphas(init_alphas)
         self.sum = Sum()
@@ -34,7 +37,7 @@ class NCell(nn.Module):
         #print(states[-2].shape)
         offset = 0
         for i in range(self.node_num):
-            s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states[-2:])]) #offset +j = 2
+            s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[offset+j], dim=-1)) for j, h in enumerate(states[-2:])]) #offset +j = 2
             offset += 2
             states.append(s)
         states.append(skip_input)
@@ -46,35 +49,31 @@ class NCell(nn.Module):
             nn.init.constant_(self.alphas, 1/self.ops_num)
         else:
             self.alphas = alphas
-    '''
-    def forward_memory(self, input0, input1):
-        s0 = self.preprocess0(input0)
-        s1 = self.preprocess0(input1)
-
-        states = [s0, s1]
-        offset = 0
-
-        for i in range(self.node_num):
-            s = self.sum(self.edges[offset+j].forward_memory(h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states))
-            offset += len(states)
-            states.append(s)
-        states.append(input1)
-        return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
     
-    def forward_ops(self, input0, input1):
-        s0 = self.preprocess0(input0)
-        s1 = self.preprocess0(input1)
-
-        states = [s0, s1]
+    def forward_ops(self):
         offset = 0
-
-        for i in range(self.node_num):
-            s = self.sum(self.edges[offset+j].forward_ops(h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states))
-            offset += len(states)
-            states.append(s)
-        states.append(input1)
-        return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
-'''
+        loss = 0
+        for _ in range(self.node_num):
+            loss += sum(self.edges[offset+j].forward_ops(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            offset += 2
+        return loss
+    
+    def forward_latency(self):
+        offset = 0
+        loss = 0
+        for _ in range(self.node_num):
+            loss += sum(self.edges[offset+j].forward_latency(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            offset += 2
+        return loss
+    
+    def forward_params(self):
+        offset = 0
+        loss = 0
+        for _ in range(self.node_num):
+            loss += sum(self.edges[offset+j].forward_params(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            offset += 2
+        return loss
+        
 
 class RCell(nn.Module):
     def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,init_alphas=None,skip_channels=64,edges_num=2, ops_num=5, node_num=4,binary=True, affine=False) -> None:
@@ -82,17 +81,19 @@ class RCell(nn.Module):
         self.edges_num = edges_num
         self.ops_num = ops_num
         self.node_num = node_num
-        self.preprocess0 = Preprocess.operations(prev_cell_type,0,C_prev_prev, C, affine)
-        self.preprocess1 = Preprocess.operations(prev_cell_type,1,C_prev, C, affine)
+        self.binary = binary
+        preprocess = Preprocess if binary else FpPreprocess
+        self.preprocess0 = preprocess.operations(prev_cell_type,0,C_prev_prev, C, affine)
+        self.preprocess1 = preprocess.operations(prev_cell_type,1,C_prev, C, affine)
         self.edges = nn.ModuleList()
         self.C = C
 
-        self.preprocess_skip = Preprocess.skip('r',(skip_channels, affine, 2))
+        self.preprocess_skip = preprocess.skip('r',(skip_channels, affine, 2))
 
         for n in range(node_num):
             for e in range(edges_num):
                 stride = 2 if n+e <= 1 else 1
-                self.edges.append(Edge(C, stride, ops_num,'r',affine))
+                self.edges.append(Edge(C, stride, ops_num,'r', affine, binary))
         
         self._init_alphas(init_alphas)
         self.sum = Sum()
@@ -107,7 +108,7 @@ class RCell(nn.Module):
         states = [s0, s1]
         offset = 0
         for i in range(self.node_num):
-            s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states[-2:])]) #offset +j = 2
+            s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[offset+j], dim=-1)) for j, h in enumerate(states[-2:])]) #offset +j = 2
             offset += 2
             states.append(s)
         prp = self.preprocess_skip(skip_input)
@@ -121,35 +122,31 @@ class RCell(nn.Module):
             nn.init.constant_(self.alphas, 1/self.ops_num)
         else:
             self.alphas = alphas
-    '''
-    def forward_memory(self, input0, input1):
-        s0 = self.preprocess0(input0)
-        s1 = self.preprocess0(input1)
 
-        states = [s0, s1]
+    def forward_ops(self):
         offset = 0
-
-        for i in range(self.node_num):
-            s = self.sum(self.edges[offset+j].forward_memory(h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states))
-            offset += len(states)
-            states.append(s)
-        states.append(input1)
-        return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
+        loss = 0
+        for _ in range(self.node_num):
+            loss += sum(self.edges[offset+j].forward_ops(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            offset += 2
+        return loss
     
-    def forward_ops(self, input0, input1):
-        s0 = self.preprocess0(input0)
-        s1 = self.preprocess0(input1)
-
-        states = [s0, s1]
+    def forward_latency(self):
         offset = 0
+        loss = 0
+        for _ in range(self.node_num):
+            loss += sum(self.edges[offset+j].forward_latency(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            offset += 2
+        return loss
+    
+    def forward_params(self):
+        offset = 0
+        loss = 0
+        for _ in range(self.node_num):
+            loss += sum(self.edges[offset+j].forward_params(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            offset += 2
+        return loss
 
-        for i in range(self.node_num):
-            s = self.sum(self.edges[offset+j].forward_ops(h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states))
-            offset += len(states)
-            states.append(s)
-        states.append(input1)
-        return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
-'''
 
 class UCell(nn.Module):
     def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,init_alphas=None,edges_num=2, ops_num=5, node_num=4,binary=True, affine=False) :
@@ -157,16 +154,17 @@ class UCell(nn.Module):
         self.edges_num = edges_num
         self.ops_num = ops_num
         self.node_num = node_num
-        self.preprocess0 = Preprocess.operations(prev_cell_type,0,C_prev_prev, C, affine)
-        self.preprocess1 = Preprocess.operations(prev_cell_type,1,C_prev, C, affine)
+        prprocess = Preprocess if binary else FpPreprocess
+        self.preprocess0 = prprocess.operations(prev_cell_type,0,C_prev_prev, C, affine)
+        self.preprocess1 = prprocess.operations(prev_cell_type,1,C_prev, C, affine)
         self.edges = nn.ModuleList()
-
-        self.preprocess_skip = Preprocess.skip('u',(2,))
+        self.binary = binary
+        self.preprocess_skip = prprocess.skip('u',(2,))
 
         for n in range(node_num):
             for e in range(edges_num):
                 stride = 2 if n+e <= 1 else 1
-                self.edges.append(Edge(C, stride, ops_num, 'u', affine))
+                self.edges.append(Edge(C, stride, ops_num, 'u', affine, binary))
         
         self._init_alphas(init_alphas)
         self.sum = Sum()
@@ -179,7 +177,7 @@ class UCell(nn.Module):
         states = [s0, s1]
         offset = 0
         for i in range(self.node_num):
-            s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states[-2:])]) #offset +j = 2
+            s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[offset+j], dim=-1)) for j, h in enumerate(states[-2:])]) #offset +j = 2
             offset += 2
             states.append(s)
         prp = self.preprocess_skip(skip_input)
@@ -194,43 +192,40 @@ class UCell(nn.Module):
             nn.init.constant_(self.alphas, 0.005)
         else:
             self.alphas = alphas
-    '''
-    def forward_memory(self, input0, input1):
-        s0 = self.preprocess0(input0)
-        s1 = self.preprocess0(input1)
-
-        states = [s0, s1]
-        offset = 0
-
-        for i in range(self.node_num):
-            s = self.sum(self.edges[offset+j].forward_memory(h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states))
-            offset += len(states)
-            states.append(s)
-        states.append(self.preprocess_skip(input1))
-        return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
     
-    def forward_ops(self, input0, input1):
-        s0 = self.preprocess0(input0)
-        s1 = self.preprocess0(input1)
-
-        states = [s0, s1]
+    def forward_ops(self):
         offset = 0
-
-        for i in range(self.node_num):
-            s = self.sum(self.edges[offset+j].forward_ops(h, F.softmax(self.alphas[i+j], dim=-1)) for j, h in enumerate(states))
-            offset += len(states)
-            states.append(s)
-        states.append(input1)
-        return torch.cat(states[-(self.node_num+1):], dim=1) # channels number is multiplier "4" * C "C_curr"
-'''
+        loss = 0
+        for _ in range(self.node_num):
+            loss += sum(self.edges[offset+j].forward_ops(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            offset += 2
+        return loss
+    
+    def forward_latency(self):
+        offset = 0
+        loss = 0
+        for _ in range(self.node_num):
+            loss += sum(self.edges[offset+j].forward_latency(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            offset += 2
+        return loss
+    
+    def forward_params(self):
+        offset = 0
+        loss = 0
+        for _ in range(self.node_num):
+            loss += sum(self.edges[offset+j].forward_params(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            offset += 2
+        return loss
+        
 
 class LastLayer(nn.Module):
-    def __init__(self, in_channels, classes_num=3, binary=True):
-        super(LastLayer, self).__init__()
-        conv = BinConv1x1 if binary else nn.Conv2d
+    def __init__(self, in_channels, classes_num=3, binary=True, affine=False):
+        super(LastLayer, self).__init__() 
+        conv = BinConvbn1x1 if binary else nn.Conv2d
         self.layers = nn.Sequential(
-            conv(in_channels, classes_num),
-            nn.BatchNorm2d(classes_num),
+            #BinConvT1x1(in_channels, 30, affine=False),
+            conv(in_channels, classes_num, 3),
+            nn.BatchNorm2d(classes_num, affine=affine),
             )
     def forward(self, x):
         x = self.layers(x)

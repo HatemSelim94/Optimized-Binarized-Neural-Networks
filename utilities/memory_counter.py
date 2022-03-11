@@ -7,6 +7,11 @@ def memory_forward_hook(mod, input, output):
     input_mem = 0
     output_mem = 0
     weight_mem = 0
+    #if hasattr(mod, 'scale_factor'):
+    #    print(mod)
+    #    print(len(input[0]))
+    #    print(input[0].shape)
+    #    print(output[0].shape)
     # input
     if isinstance(input[0], list) or isinstance(input[0], tuple):
         list_len = len(input[0])
@@ -36,17 +41,19 @@ def memory_forward_hook(mod, input, output):
         output_mem += np.prod(output[0].shape)*32/8
     # weight
     if hasattr(mod, 'weight'):
-        if hasattr(mod.weight,'bin'):
-            weight_mem += np.prod(mod.weight.shape)*1/8
-        else:
-            weight_mem += np.prod(mod.weight.shape)*32/8
-        if hasattr(mod, 'bias'):
-            if hasattr(mod.bias,'bin'):
+        if mod.weight is not None:
+            if hasattr(mod.weight,'bin'):
                 weight_mem += np.prod(mod.weight.shape)*1/8
             else:
                 weight_mem += np.prod(mod.weight.shape)*32/8
+        if hasattr(mod, 'bias'):
+            if mod.bias is not None:
+                if hasattr(mod.bias,'bin'):
+                    weight_mem += np.prod(mod.weight.shape)*1/8
+                else:
+                    weight_mem += np.prod(mod.weight.shape)*32/8
     layer_mem = input_mem + output_mem + weight_mem
-    mod.__memory =  round(layer_mem*1e-6, 4)
+    mod.__memory =  round(layer_mem*1e-6)
 
 
 
@@ -57,17 +64,18 @@ def get_max_mem(net):
         for mod in net.children():
             if hasattr(mod, '__memory'):
                 if mod.__memory > max_mem[0]:
+                    #print(round(mod.__memory, 2), mod)
                     max_layer[0] = mod
                 max_mem[0] = max(max_mem[0], mod.__memory)
 
             recur(mod)
     recur(net)
     max_mem = max_mem[0]
-    #print(max_layer)
+    print('mem max layer', max_layer)
     return max_mem
 
-def max_mem_counter(net, dummy_input_shape):
-    dummy = torch.randn(dummy_input_shape)
+def max_mem_counter(net, dummy_input_shape, device='cuda'):
+    dummy = torch.randn(dummy_input_shape, device=device)
     handles = []
     def attach_hooks(net):
         leaf_layers = 0
@@ -81,7 +89,7 @@ def max_mem_counter(net, dummy_input_shape):
     max_mem_bytes = get_max_mem(net)
     for handle in handles:
         handle.remove()
-    return max_mem_bytes
+    return round(max_mem_bytes, 2)
 
 def remove_mem_vars(net):
     def recur(net):
