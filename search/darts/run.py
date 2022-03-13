@@ -9,7 +9,7 @@ import os
 from architecture import Architecture, Network
 from processing import Transformer, DataSets
 from processing.datasets import CityScapes, KittiDataset
-from utilities import infer, set_seeds, Clipper, DataPlotter, Tracker, train_arch, model_info, clean_dir
+from utilities import infer, set_seeds, Clipper, DataPlotter, Tracker, train_arch, model_info, clean_dir, prepare_ops_metrics
 
 parser  = argparse.ArgumentParser('DARTS')
 parser.add_argument('--data_name', type=str, default='cityscapes')
@@ -49,6 +49,10 @@ parser.add_argument('--arch_start', type=int, default=20)
 parser.add_argument('--both', type=bool, default=False)
 parser.add_argument('--affine', type=bool, default=False)
 parser.add_argument('--binary', type=bool, default=True)
+parser.add_argument('--ops_obj_beta', type=float, default=0.0)
+parser.add_argument('--params_obj_gamma', type=float, default=0.0)
+parser.add_argument('--latency_obj_delta', type=float, default=0.0)
+parser.add_argument('--last_layer_binary', type=bool,default=True)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -59,11 +63,14 @@ def main():
     clean_dir(args)
     if not torch.cuda.is_available():
         sys.exit(1)
-    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, weight=KittiDataset.loss_weights_3, label_smoothing=0.2)
+    classes_weights = KittiDataset.loss_weights_3 if args.num_of_classes ==3 else KittiDataset.loss_weights_8
+    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, weight=classes_weights, label_smoothing=0.2)
     criterion = criterion.to(args.device)  
     net = Network(args).to(args.device)
     net._set_criterion(criterion)
-    model_info(net,(1, 3, args.image_size, args.image_size), save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
+    input_shape = (1, 3, args.image_size, args.image_size)
+    model_info(net, input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
+    prepare_ops_metrics(net, input_shape)
     arch = Architecture(net, args)
     train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
     val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size,args.image_size]}})
@@ -93,7 +100,7 @@ def main():
         # training
         train_arch(train_loader, val_loader, arch, criterion, optimizer, epoch, arch_start=args.arch_start,both=args.both)
         scheduler.step()
-        miou, loss= infer(val_loader, net, criterion)
+        miou, loss= infer(val_loader, net, criterion, num_of_classes=args.num_of_classes)
         tracker.print(0,0, loss, miou, epoch=epoch, mode='val')
         data.store(epoch, 0, loss, 0, miou)
         data.plot(mode='val', save=True, seaborn=False)

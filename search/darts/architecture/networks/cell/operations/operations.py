@@ -1,5 +1,4 @@
 #primitives, operations, Preprocess
-from this import d
 from .search_operations import *
 
 
@@ -26,7 +25,7 @@ NR_OPERATIONS= {
   'avg_pool_3x3' : lambda C, stride, affine: AvgPool(in_channels=C,kernel_size=3, stride=stride, padding=1,affine=affine),
   'conv_1x1': lambda C, stride, affine: BinConv1x1(C, C, stride = stride, affine=affine),
   'conv_3x3': lambda C, stride, affine: BinConv3x3(C, C, stride = stride, affine=affine),
-  'dil_conv_3x3_r' : lambda C, stride, affine: BinDilConv3x3(C, C, 3, stride = stride, affine=affine, padding=4, dilation=4),
+  'dil_conv_3x3_r4' : lambda C, stride, affine: BinDilConv3x3(C, C, 3, stride = stride, affine=affine, padding=4, dilation=4),
   'skip_connect' : lambda C, stride, affine: Identity() if stride == 1 else BinConv1x1(C, C, stride = stride, affine=affine)
 }
 

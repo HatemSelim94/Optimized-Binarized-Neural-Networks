@@ -7,10 +7,11 @@ import json
 import os
 import matplotlib.pyplot as plt
 from processing import SegMetrics
+from utilities.edge_hooks import calculate_ops_metrics, calculate_min
 from .ops_info import ops_counter
 from .param_size import params_size_counter
 from .memory_counter import max_mem_counter
-from .latency import get_latency
+from .latency import calculate_ops_latency, get_latency
 
 
 def clean_dir(args):
@@ -361,6 +362,11 @@ def save_model(model, epoch,scheduler, best_val_mean_iou, experiment_path, check
     }, PATH)
     return PATH
 
+def prepare_ops_metrics(net, input_shape):
+    calculate_ops_metrics(net, input_shape)
+    calculate_ops_latency(net, input_shape)
+    calculate_min(net)
+
 
 def get_losses(net, binary=True):
     ops_loss = 0
@@ -371,4 +377,5 @@ def get_losses(net, binary=True):
         ops_loss += cell.forward_ops()
         params_loss += cell.forward_params()
         latency_loss += cell.forward_latency()
+    #print(ops_loss, params_loss, latency_loss)
     return ops_loss, params_loss, latency_loss

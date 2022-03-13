@@ -55,7 +55,7 @@ class Network(nn.Module):
             c_prev = (self.nodes_num * c) + self.initial_channels
      
         self.upsample = Bilinear(scale_factor=2)
-        self.last_layer = LastLayer(c_prev, affine=self.affine)
+        self.last_layer = LastLayer(c_prev, classes_num=args.num_of_classes,affine=self.affine, binary=args.last_layer_binary)
     
     def forward(self, x):
         s0 = s1=skip_input= self.first_layer(x)

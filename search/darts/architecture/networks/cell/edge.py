@@ -17,6 +17,7 @@ class Edge(nn.Module):
         for i, primitive in enumerate(primitives):
             if i < ops_num:
                 self.ops.append(operations[primitive](C, stride, affine=affine))
+                self.ops[-1].edge_layer=True
                 #print(self.ops[-1])
         self.C = C
         self.stride = stride
@@ -29,25 +30,25 @@ class Edge(nn.Module):
             if idx is None:
                 return self.sum([w*op(x) for w, op in zip(weights, self.ops)])
             else:
-                return self.sum(w*op(x) for id, (w, op) in enumerate(zip(weights, self.ops)) if id in idx)
-    
+                return self.sum([w*op(x) for id, (w, op) in enumerate(zip(weights, self.ops)) if id in idx])
+
     def forward_ops(self, weights, idx=None):
         if self.objs is None:
             if idx is None:
-                return self.sum([w*op.__total_ops for w, op in zip(weights, self.ops)])
+                return self.sum(w*(getattr(op,'__total_ops') - getattr(self, '__min_ops'))for w, op in zip(weights, self.ops))
             else:
-                return self.sum(w*op.__total_ops for id, (w, op) in enumerate(zip(weights, self.ops)) if id in idx)
-    
+                return self.sum(w*(getattr(op,'__total_ops') - getattr(self, '__min_ops')) for id, (w, op) in enumerate(zip(weights, self.ops)) if id in idx)
+
     def forward_params(self, weights, idx=None):
         if self.objs is None:
             if idx is None:
-                return self.sum([w*op.__total_params for w, op in zip(weights, self.ops)])
+                return self.sum(w*(getattr(op,'__total_params') - getattr(self, '__min_params')) for w, op in zip(weights, self.ops))
             else:
-                return self.sum(w*op.__total_params for id, (w, op) in enumerate(zip(weights, self.ops)) if id in idx)
+                return self.sum(w*(getattr(op,'__total_params') - getattr(self, '__min_params')) for id, (w, op) in enumerate(zip(weights, self.ops)) if id in idx)
     
     def forward_latency(self, weights, idx=None):
         if self.objs is None:
             if idx is None:
-                return self.sum([w*op.__total_latency for w, op in zip(weights, self.ops)])
+                return self.sum(w*(getattr(op,'__total_latency') - getattr(self, '__min_latency')) for w, op in zip(weights, self.ops))
             else:
-                return self.sum(w*op.__total_latency for id, (w, op) in enumerate(zip(weights, self.ops)) if id in idx)
+                return self.sum(w*(getattr(op,'__total_latency') - getattr(self, '__min_latency')) for id, (w, op) in enumerate(zip(weights, self.ops)) if id in idx)

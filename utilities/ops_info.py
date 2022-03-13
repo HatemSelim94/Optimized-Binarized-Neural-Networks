@@ -53,11 +53,17 @@ def sum_ops_forward_hook(mod, input, output):
         else:
             ops = np.prod(output.shape)*(bin_inputs - 1)/64 + np.prod(output.shape)*(list_len-bin_inputs)
     else:
-        #wrong shortcut
-        #print(len(list(input[0])))
-        #print('Sum ops Warning!: line 55 in ops_info')
-        ops = np.prod(output.shape)*(5)
-
+        try:
+            unique_vals = torch.unique(input[0]).shape[0]
+            if unique_vals <= 3:
+                if unique_vals == 3:
+                    print('Warning: Ternary')
+                ops = np.prod(output.shape)*1/64
+            else:
+                ops = np.prod(output.shape)
+        except:
+            ops = np.prod(output.shape)*5 # worst case scenario approximation
+            print('Warning: input is a consumed generator')
     mod.__ops = ops*1e-6 
 
 def binarization_ops_forward_hook(mod, input, output):

@@ -1,4 +1,3 @@
-from matplotlib import offsetbox
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -54,7 +53,7 @@ class NCell(nn.Module):
         offset = 0
         loss = 0
         for _ in range(self.node_num):
-            loss += sum(self.edges[offset+j].forward_ops(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            loss += sum(self.edges[offset+j].forward_ops(F.softmax(self.alphas[offset+j], dim=-1)) for j in range(2)) #offset +j = 2
             offset += 2
         return loss
     
@@ -62,7 +61,7 @@ class NCell(nn.Module):
         offset = 0
         loss = 0
         for _ in range(self.node_num):
-            loss += sum(self.edges[offset+j].forward_latency(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            loss += sum(self.edges[offset+j].forward_latency(F.softmax(self.alphas[offset+j], dim=-1)) for j in range(2)) #offset +j = 2
             offset += 2
         return loss
     
@@ -70,7 +69,7 @@ class NCell(nn.Module):
         offset = 0
         loss = 0
         for _ in range(self.node_num):
-            loss += sum(self.edges[offset+j].forward_params(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            loss += sum(self.edges[offset+j].forward_params(F.softmax(self.alphas[offset+j], dim=-1)) for j in range(2)) #offset +j = 2
             offset += 2
         return loss
         
@@ -127,7 +126,7 @@ class RCell(nn.Module):
         offset = 0
         loss = 0
         for _ in range(self.node_num):
-            loss += sum(self.edges[offset+j].forward_ops(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            loss += sum(self.edges[offset+j].forward_ops(F.softmax(self.alphas[offset+j], dim=-1)) for j in range(2)) #offset +j = 2
             offset += 2
         return loss
     
@@ -135,7 +134,7 @@ class RCell(nn.Module):
         offset = 0
         loss = 0
         for _ in range(self.node_num):
-            loss += sum(self.edges[offset+j].forward_latency(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            loss += sum(self.edges[offset+j].forward_latency(F.softmax(self.alphas[offset+j], dim=-1)) for j in range(2)) #offset +j = 2
             offset += 2
         return loss
     
@@ -143,7 +142,7 @@ class RCell(nn.Module):
         offset = 0
         loss = 0
         for _ in range(self.node_num):
-            loss += sum(self.edges[offset+j].forward_params(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            loss += sum(self.edges[offset+j].forward_params(F.softmax(self.alphas[offset+j], dim=-1)) for j in range(2)) #offset +j = 2
             offset += 2
         return loss
 
@@ -197,7 +196,7 @@ class UCell(nn.Module):
         offset = 0
         loss = 0
         for _ in range(self.node_num):
-            loss += sum(self.edges[offset+j].forward_ops(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            loss += sum(self.edges[offset+j].forward_ops(F.softmax(self.alphas[offset+j], dim=-1)) for j in range(2)) #offset +j = 2
             offset += 2
         return loss
     
@@ -205,7 +204,7 @@ class UCell(nn.Module):
         offset = 0
         loss = 0
         for _ in range(self.node_num):
-            loss += sum(self.edges[offset+j].forward_latency(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            loss += sum(self.edges[offset+j].forward_latency(F.softmax(self.alphas[offset+j], dim=-1)) for j in range(2)) #offset +j = 2
             offset += 2
         return loss
     
@@ -213,7 +212,7 @@ class UCell(nn.Module):
         offset = 0
         loss = 0
         for _ in range(self.node_num):
-            loss += sum(self.edges[offset+j].forward_params(F.softmax(self.alphas[offset+j])) for j in range(2)) #offset +j = 2
+            loss += sum(self.edges[offset+j].forward_params(F.softmax(self.alphas[offset+j], dim=-1)) for j in range(2)) #offset +j = 2
             offset += 2
         return loss
         
@@ -224,8 +223,11 @@ class LastLayer(nn.Module):
         conv = BinConvbn1x1 if binary else nn.Conv2d
         self.layers = nn.Sequential(
             #BinConvT1x1(in_channels, 30, affine=False),
-            conv(in_channels, classes_num, 3),
-            nn.BatchNorm2d(classes_num, affine=affine),
+            conv(in_channels, classes_num, 3)
+            )
+        if not binary:
+            self.layers.add_module(
+                nn.BatchNorm2d(classes_num, affine=affine)
             )
     def forward(self, x):
         x = self.layers(x)

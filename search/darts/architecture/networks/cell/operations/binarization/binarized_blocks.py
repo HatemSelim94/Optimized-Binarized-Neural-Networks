@@ -19,10 +19,10 @@ class BinConvBnHTanh(nn.Module):
     '''
     binarize -> conv -> batchnorm -> hardtanh
     '''
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros'):
         super(BinConvBnHTanh, self).__init__()
         #self.ops = nn.Sequential
-        self.conv = BinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation)
+        self.conv = BinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation,padding_mode=padding_mode)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         self.htanh = nn.Hardtanh(-1, 1, True)
         self.binarize = BinActivation()
@@ -96,7 +96,7 @@ class BinConvBnHTanh(nn.Module):
                 plot_weight(self.conv.weight)
 
     def get_config(self):
-        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size, 'stride':self.conv.stride, 'padding':self.conv.padding, 'dilation':self.conv.dilation, 'affine':self.batchnorm.affine}
+        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size[0], 'stride':self.conv.stride[0], 'padding':self.conv.padding[0], 'dilation':self.conv.dilation[0], 'affine':self.batchnorm.affine, 'padding_mode':self.conv.padding_mode}
     
     @classmethod
     def model(cls, config):
@@ -104,10 +104,10 @@ class BinConvBnHTanh(nn.Module):
 
 
 class BinTConvBnHTanh(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros'):
         super(BinTConvBnHTanh, self).__init__()
         #self.ops = nn.Sequential
-        self.conv = BinConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation)
+        self.conv = BinConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         self.htanh = nn.Hardtanh(-1, 1, True)
         self.binarize = BinActivation()
@@ -182,7 +182,7 @@ class BinTConvBnHTanh(nn.Module):
                 plot_weight(self.conv.weight.sign())
 
     def get_config(self):
-        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size, 'stride':self.conv.stride, 'padding':self.conv.padding, 'dilation':self.conv.dilation, 'affine':self.batchnorm.affine}
+        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size[0], 'stride':self.conv.stride[0], 'padding':self.conv.padding[0], 'dilation':self.conv.dilation[0], 'affine':self.batchnorm.affine, 'padding_mode':self.conv.padding_mode}
     
     @classmethod
     def model(cls, config):
@@ -193,10 +193,10 @@ class ConvBnHTanhBin (nn.Module):
     '''
     conv -> batchnorm -> hardtanh -> binarize
     '''
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros'):
         super(ConvBnHTanhBin, self).__init__()
         #self.ops = nn.Sequential
-        self.conv = BinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation)
+        self.conv = BinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation,padding_mode=padding_mode)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         self.htanh = nn.Hardtanh(-1, 1, True)
         self.binarize = BinActivation()
@@ -256,7 +256,7 @@ class ConvBnHTanhBin (nn.Module):
                 plot_weight(self.conv.weight)
 
     def get_config(self):
-        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size, 'stride':self.conv.stride, 'padding':self.conv.padding, 'dilation':self.conv.dilation, 'affine':self.batchnorm.affine}
+        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size, 'stride':self.conv.stride, 'padding':self.conv.padding, 'dilation':self.conv.dilation, 'affine':self.batchnorm.affine, 'padding_mode':self.conv.padding_mode}
     
     @classmethod
     def model(cls, config):
@@ -264,10 +264,10 @@ class ConvBnHTanhBin (nn.Module):
 
 
 class TConvBnHTanhBin (nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine = True):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine = True, padding_mode='zeros'):
         super(TConvBnHTanhBin, self).__init__()
         #self.ops = nn.Sequential
-        self.conv = BinConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation)
+        self.conv = BinConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine )
         self.htanh = nn.Hardtanh(-1, 1, True)
         self.binarize = BinActivation()
@@ -326,7 +326,7 @@ class TConvBnHTanhBin (nn.Module):
                 plot_weight(self.conv.weight.sign())
 
     def get_config(self):
-        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size, 'stride':self.conv.stride, 'padding':self.conv.padding, 'dilation':self.conv.dilation, 'affine':self.batchnorm.affine}
+        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size, 'stride':self.conv.stride, 'padding':self.conv.padding, 'dilation':self.conv.dilation, 'affine':self.batchnorm.affine, 'padding_mode':self.conv.padding_mode}
     
     @classmethod
     def model(cls, config):
@@ -336,10 +336,10 @@ class BinConvBn(nn.Module):
     '''
     binarize -> conv -> batchnorm
     '''
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros'):
         super(BinConvBn, self).__init__()
         #self.ops = nn.Sequential
-        self.conv = BinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation)
+        self.conv = BinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         self.binarize = BinActivation()
         self.latency_table = {}
@@ -411,7 +411,7 @@ class BinConvBn(nn.Module):
                 plot_weight(self.conv.weight)
 
     def get_config(self):
-        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size, 'stride':self.conv.stride, 'padding':self.conv.padding, 'dilation':self.conv.dilation, 'affine':self.batchnorm.affine}
+        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size, 'stride':self.conv.stride, 'padding':self.conv.padding, 'dilation':self.conv.dilation, 'affine':self.batchnorm.affine, 'padding_mode':self.conv.padding_mode}
     
     @classmethod
     def model(cls, config):
