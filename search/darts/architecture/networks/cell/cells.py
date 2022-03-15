@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .operations.search_operations import BinConvbn1x1, BinConvT1x1
+from .operations.search_operations import BinConvbn1x1, BinConvT1x1, ConvBn
 
 from .operations import Sum, Preprocess, FpPreprocess,Cat
 from .edge import Edge
@@ -218,12 +218,13 @@ class UCell(nn.Module):
         
 
 class LastLayer(nn.Module):
-    def __init__(self, in_channels, classes_num=3, binary=True, affine=False):
+    def __init__(self, in_channels, classes_num=3, binary=True, affine=False, kernel_size=3):
         super(LastLayer, self).__init__() 
         conv = BinConvbn1x1 if binary else nn.Conv2d
+        #conv = ConvBn if binary else nn.Conv2d
         self.layers = nn.Sequential(
             #BinConvT1x1(in_channels, 30, affine=False),
-            conv(in_channels, classes_num, 3)
+            conv(in_channels, classes_num, kernel_size)
             )
         if not binary:
             self.layers.add_module(

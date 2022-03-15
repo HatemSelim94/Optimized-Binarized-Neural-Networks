@@ -119,7 +119,7 @@ def train_arch(model_dataloader, arch_dataloader, arch, criterion, optimizer, ep
     #return round(mean_iou*100, 2), train_loss
 
 
-def train(train_queue, model, criterion, optimizer, lr, epoch, num_of_classes=3,device='cuda'):
+def train(train_queue, model, criterion, optimizer, num_of_classes=3,device='cuda'):
   metric = SegMetrics(num_of_classes)
   train_loss = 0
   for step, (imgs, trgts, _) in enumerate(train_queue):

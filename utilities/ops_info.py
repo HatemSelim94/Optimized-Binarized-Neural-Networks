@@ -4,8 +4,13 @@ import torch.nn as nn
 import numpy as np 
 import sys
 sys.path.append('search/darts/')
+sys.path.append('eval/darts/')
 from architecture.networks.cell.operations.binarization.binarized_layers import BinConvTranspose2d, BinConv2d, BinActivation
 from architecture.networks.cell.operations.search_operations import Cat, Sum, Bilinear, Identity
+
+from architecture_eval.networks.cell.operations.binarization.binarized_layers import BinConvTranspose2d, BinConv2d, BinActivation as EvalBinConvTranspose2d, EvalBinConv2d, EvalBinActivation
+from architecture_eval.networks.cell.operations.search_operations import Cat, Sum, Bilinear, Identity as EvalCat, EvalSum, EvalBilinear, EvalIdentity
+
 
 def identity_ops_forward_hook(mod, input, output):
     mod.__ops = 0
@@ -103,29 +108,29 @@ def ops_counter(net, dummy_input_shape, device='cuda'):
     handles = []
     def attach_hooks(net):
         for mod in net.children():
-            if isinstance(mod, BinConv2d):
+            if isinstance(mod, BinConv2d) or isinstance(mod, EvalBinConv2d):
                 handles.append(mod.register_forward_hook(binconv_ops_forward_hook))
-            elif isinstance(mod, BinConvTranspose2d):
+            elif isinstance(mod, BinConvTranspose2d) or isinstance(mod, EvalBinConvTranspose2d):
                 handles.append(mod.register_forward_hook(bintconv_ops_forward_hook))
-            elif isinstance(mod, Sum):
+            elif isinstance(mod, Sum) or isinstance(mod, EvalSum):
                 handles.append(mod.register_forward_hook(sum_ops_forward_hook))
-            elif isinstance(mod, Bilinear):
+            elif isinstance(mod, Bilinear) or isinstance(mod, EvalBilinear):
                 handles.append(mod.register_forward_hook(bilinear_ops_forward_hook))
             elif isinstance(mod, nn.MaxPool2d) or isinstance(mod, nn.AvgPool2d):
                 handles.append(mod.register_forward_hook(pool_ops_forward_hook))
-            elif isinstance(mod, Identity):
+            elif isinstance(mod, Identity) or isinstance(mod, EvalIdentity):
                 handles.append(mod.register_forward_hook(identity_ops_forward_hook))
             elif isinstance(mod, nn.BatchNorm2d):
                 handles.append(mod.register_forward_hook(bn_ops_forward_hook))
             elif isinstance(mod, nn.Hardtanh):
                 handles.append(mod.register_forward_hook(tanh_ops_forward_hook))
-            elif isinstance(mod, Cat):
+            elif isinstance(mod, Cat) or isinstance(mod, EvalCat):
                 handles.append(mod.register_forward_hook(cat_ops_forward_hook))
             elif isinstance(mod, nn.Conv2d):
                 handles.append(mod.register_forward_hook(conv_ops_forward_hook))
             elif isinstance(mod, nn.ConvTranspose2d):
                 handles.append(mod.register_forward_hook(conv_ops_forward_hook))
-            elif isinstance(mod, BinActivation):
+            elif isinstance(mod, BinActivation) or isinstance(mod, EvalBinActivation):
                 handles.append(mod.register_forward_hook(binarization_ops_forward_hook))
             else:
                 #print(f'Warning: {type(mod)} ops is not defined')

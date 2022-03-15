@@ -1,3 +1,4 @@
+from ast import arg
 from collections import OrderedDict
 
 import torch
@@ -9,6 +10,7 @@ from .cell.cells import LastLayer
 
 from .constructor import NetConstructor
 from .utilities.genotype import save_genotype, load_genotype
+import os
 
 class Network(nn.Module):
     def __init__(self, args):
@@ -23,9 +25,8 @@ class Network(nn.Module):
         self.unique_cells_len = len(self.unique_cells)
         self.initial_channels = args.stem_channels
         self.cells = nn.ModuleList()
-        self.alphas = [torch.empty((self.nodes_num*self.edge_num ,self.ops_num), requires_grad=True, device=args.device) for _ in range(self.unique_cells_len)]
-        for i in range(self.unique_cells_len):
-            nn.init.constant_(self.alphas[i], 1/self.ops_num)
+        self.genotype_path = args.genotype_path
+        self.genotypes = self.load_genotype(os.path.join(self.genotype_path, args.search_exp_name))
         self.first_layer = Stem(out_channels=self.initial_channels, affine=self.affine)
         
         c_prev_prev = self.initial_channels
@@ -43,11 +44,11 @@ class Network(nn.Module):
             else:
                 continue
             if cell_type =='r':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[idx[cell_type]],self.initial_channels, 2,self.ops_num, self.nodes_num, self.binary, self.affine)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type] ,self.initial_channels, 2,self.ops_num, self.nodes_num, self.binary, self.affine)
             elif cell_type == 'n':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[idx[cell_type]],1,2,self.ops_num, self.nodes_num, self.binary, self.affine)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type],1,2,self.ops_num, self.nodes_num, self.binary, self.affine)
             else:
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[idx[cell_type]], 2, self.ops_num, self.nodes_num,self.binary, self.affine)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type], 2, self.ops_num, self.nodes_num,self.binary, self.affine)
             #print(cell_specs)
             self.cells.append(NetConstructor.construct(cell_type, cell_specs))
             prev_cell = cell_type
@@ -65,18 +66,9 @@ class Network(nn.Module):
         x = self.upsample(s1)
         x = self.last_layer(x)
         return x
-    '''
-    def forward_latency(self, x):
-        output = 0
-        for cell in self.cells:
-            output += cell(x)
-        return output
-    '''
-    def load_genotype(self, dir=None):
-        self.idx = load_genotype(dir)
 
-    def save_genotype(self, dir=None, epoch=0, nodes=4):
-        save_genotype(self.model.alphas,dir, epoch,nodes=nodes)
+    def load_genotype(self, dir=None):
+        load_genotype(dir)
     
     def _loss(self, inputs, targets):
         predictions = self(inputs)

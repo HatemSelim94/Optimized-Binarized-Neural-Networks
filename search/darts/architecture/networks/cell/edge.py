@@ -8,7 +8,7 @@ from operator import itemgetter
 
 
 class Edge(nn.Module):
-    def __init__(self, C, stride, ops_num, cell_type, affine, binary=True, objs=None) -> None:
+    def __init__(self, C, stride, ops_num, cell_type, affine, binary=True, objs=None):
         super(Edge, self).__init__()
         ops_constructor = OperationsConstructor if binary else FpOperationsConstructor
         self.ops = nn.ModuleList()

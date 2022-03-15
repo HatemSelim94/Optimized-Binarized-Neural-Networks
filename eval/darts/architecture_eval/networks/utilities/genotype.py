@@ -74,10 +74,7 @@ def save_cell_idx(cell_idx:torch.Tensor, type, dir, epoch=0):
     filefolder = f'darts_relaxed_cell_modified_{type}' 
     filepath = os.path.join(dir, filefolder)
     filename = os.path.join(filepath,f'genotype_{epoch}')
-    best_filename = os.path.join(filepath,f'genotype_best')
     with open(filename+'.json','w') as f:
-        json.dump(cell_idx.tolist(),f)
-    with open(best_filename+'.json','w') as f:
         json.dump(cell_idx.tolist(),f)
     
 
@@ -95,8 +92,13 @@ def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u']):
     return indices
 
 def load_genotype(dir):
-    with open(dir+'.json', 'r') as f:
-        indices = json.load(f)
+    indices = {}
+    genotype_folder_generic = 'darts_relaxed_cell_modified_'
+    for i, cell_type in enumerate(self.unique_cells):
+        genotype_folder = genotype_folder_generic+cell_type
+        gentyoes_path = os.path.join(dir, genotype_folder)
+        with open(os.dir.join(gentyoes_path,'genotype_best.json'), 'r') as f:
+            indices[cell_type] = json.load(f)
     return indices
     
 

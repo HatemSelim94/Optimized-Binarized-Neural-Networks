@@ -3,7 +3,9 @@ import torch.nn as nn
 import numpy as np 
 import sys
 sys.path.append('search/darts/')
+sys.path.append('eval/darts/')
 from architecture.networks.cell.edge import Edge
+from architecture_eval.networks.cell.edge import EvalEdge
 
 
 def total_metrics_hook(mod, input, output):
@@ -37,7 +39,7 @@ def calculate_ops_metrics(net, input_shape):
 def calculate_min(net):
     def recurs(net):
         for mod in net.children():
-            if isinstance(mod, Edge):
+            if isinstance(mod, Edge) or isinstance(mod, EvalEdge):
                 mod.__min_ops = min([layer.__total_ops for layer in mod.ops])
                 mod.__min_params = min([layer.__total_params for layer in mod.ops])
                 mod.__min_latency = min([layer.__total_latency for layer in mod.ops])

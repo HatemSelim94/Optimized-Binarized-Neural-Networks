@@ -6,28 +6,19 @@ from torch.utils.data import Subset
 import argparse
 import os
 
-from architecture import Architecture, Network
+from architecture_eval import Network
 from processing import Transformer, DataSets
 from processing.datasets import CityScapes, KittiDataset
-from utilities import infer, set_seeds, Clipper, DataPlotter, Tracker, train_arch, model_info, clean_dir, prepare_ops_metrics
+from utilities import train, infer, set_seeds, Clipper, DataPlotter, Tracker, model_info, clean_dir, prepare_ops_metrics
 
 parser  = argparse.ArgumentParser('DARTS')
 parser.add_argument('--data_name', type=str, default='cityscapes')
 parser.add_argument('--data_path', type=str, default='../../data/cityscapes/')
-#parser.add_argument('--genotype_path', type=str, default='experiments/search/three_cells_stem_1/exp1/best_genotype')
-parser.add_argument('--model_path')
 parser.add_argument('--batch_size', type=int, default=4)
 parser.add_argument('--image_size', type=int, default=224)
 parser.add_argument('--num_of_classes', type=int, default=3)
 parser.add_argument('--train_subset', type=int, default=300)
 parser.add_argument('--val_subset', type=int, default=200)
-parser.add_argument('--arch_optim',type=str, default='adam')
-parser.add_argument('--arch_optim_lr', type=float, default=0.01)
-parser.add_argument('--arch_optim_beta0', type=float, default=0.9)
-parser.add_argument('--arch_optim_beta1', type=float, default=0.999)
-parser.add_argument('--arch_optim_eps', type=float, default=1e-08)
-parser.add_argument('--arch_optim_weight_decay', type=float, default=5e-4)
-parser.add_argument('--arch_optim_amsgrad', type=bool, default=False)
 parser.add_argument('--epochs', type=int, default=40)
 parser.add_argument('--network_optim', type=str, default='adamax')
 parser.add_argument('--network_optim_bin_lr', type=float, default=1e-3)
@@ -41,20 +32,16 @@ parser.add_argument('--edge_num', type=int, default=2)
 parser.add_argument('--ops_num', type=int, default=6)
 parser.add_argument('--network_final_layer', type=str,default='bin')
 #parser.add_argument('--network_scheduler', type=str, default='lambda')
-parser.add_argument('--experiment_path', type=str, default='search/darts/experiments/')
+parser.add_argument('--experiment_path', type=str, default='eval/darts/experiments/')
 parser.add_argument('--experiment_name', type=str, default='exp1')
 parser.add_argument('--device', type=str, default='cuda')
 parser.add_argument('--seed', type=int, default=4)
-parser.add_argument('--arch_start', type=int, default=20)
-parser.add_argument('--both', type=bool, default=False)
 parser.add_argument('--affine', type=bool, default=False)
 parser.add_argument('--binary', type=bool, default=True)
-parser.add_argument('--ops_obj_beta', type=float, default=0.0)
-parser.add_argument('--params_obj_gamma', type=float, default=0.0)
-parser.add_argument('--latency_obj_delta', type=float, default=0.0)
 parser.add_argument('--last_layer_binary', type=bool,default=True)
 parser.add_argument('--last_layer_kernel_size', type=int, default=True)
-
+parser.add_argument('--genotype_path', type=str, default='search/darts/experiments/')
+parser.add_argument('--search_exp_name', type=str, default='exp1')
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -73,7 +60,6 @@ def main():
     input_shape = (1, 3, args.image_size, args.image_size)
     model_info(net, input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
     prepare_ops_metrics(net, input_shape)
-    arch = Architecture(net, args)
     train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
     val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size,args.image_size]}})
     train_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes, transforms=train_transforms)
@@ -89,7 +75,8 @@ def main():
                     val_dataset, 
                     batch_size= args.batch_size, pin_memory = True)
     
-    set_seeds(args.seed)  
+    set_seeds(args.seed)
+    num_of_classes = args.num_of_classes
     fp_params = [p for p in net.parameters() if not hasattr(p,'bin')]
     bin_params = [p for p in net.parameters() if hasattr(p,'bin')]
     optim_args = [[{'params':fp_params, 'weight_decay':args.network_optim_fp_weight_decay,'lr':args.network_optim_fp_lr},{'params':bin_params, 'weight_decay':0,'lr':args.network_optim_bin_lr, 'betas':[args.network_optim_bin_betas, args.network_optim_bin_betas ]}]]
@@ -100,15 +87,13 @@ def main():
     tracker.start()
     for epoch in range(args.epochs):
         # training
-        train_arch(train_loader, val_loader, arch, criterion, optimizer, epoch, arch_start=args.arch_start,both=args.both)
-        scheduler.step()
-        miou, loss= infer(val_loader, net, criterion, num_of_classes=args.num_of_classes)
-        tracker.print(0,0, loss, miou, epoch=epoch, mode='val')
-        data.store(epoch, 0, loss, 0, miou)
-        data.plot(mode='val', save=True, seaborn=False)
-        if epoch > args.arch_start-1:
-            arch.save_genotype(os.path.join(args.experiment_path, args.experiment_name), epoch, nodes=args.nodes_num)
-    data.save_as_json()
+        train_miou, train_loss = train(train_loader, net, criterion, optimizer, num_of_classes)
+        scheduler.step(epoch=epoch)
+        miou, loss= infer(val_loader, net, criterion, num_of_classes=num_of_classes)
+        tracker.print(train_loss,train_miou, loss, miou, epoch=epoch)
+        data.store(epoch, train_loss, loss, train_miou, miou)
+        data.plot(mode='all', save=True, seaborn=False)
+        data.save_as_json()
     tracker.end()
   
 if __name__ == '__main__':
