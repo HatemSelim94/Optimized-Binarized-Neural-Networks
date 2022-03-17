@@ -21,42 +21,42 @@ UP_PRIMITIVES = [
 ]
 
 NR_OPERATIONS= {
-  'max_pool_3x3' : lambda C, stride, affine: MaxPool(in_channels=C, kernel_size=3, stride=stride, padding=1,affine=affine),
-  'avg_pool_3x3' : lambda C, stride, affine: AvgPool(in_channels=C,kernel_size=3, stride=stride, padding=1,affine=affine),
-  'conv_1x1': lambda C, stride, affine: BinConv1x1(C, C, stride = stride, affine=affine),
-  'conv_3x3': lambda C, stride, affine: BinConv3x3(C, C, stride = stride, affine=affine),
-  'dil_conv_3x3_r4' : lambda C, stride, affine: BinDilConv3x3(C, C, 3, stride = stride, affine=affine, padding=4, dilation=4),
-  'skip_connect' : lambda C, stride, affine: Identity() if stride == 1 else BinConv1x1(C, C, stride = stride, affine=affine)
+  'max_pool_3x3' : lambda C, stride, affine, padding_mode,jit,dropout2d: MaxPool(in_channels=C, kernel_size=3, stride=stride, padding=1,affine=affine),
+  'avg_pool_3x3' : lambda C, stride, affine,padding_mode,jit,dropout2d: AvgPool(in_channels=C,kernel_size=3, stride=stride, padding=1,affine=affine),
+  'conv_1x1': lambda C, stride, affine, padding_mode, jit,dropout2d: BinConv1x1(C, C, stride = stride, affine=affine, padding_mode=padding_mode,jit=jit,dropout2d=dropout2d),
+  'conv_3x3': lambda C, stride, affine, padding_mode, jit,dropout2d: BinConv3x3(C, C, stride = stride, affine=affine,padding_mode=padding_mode,jit=jit,dropout2d=dropout2d),
+  'dil_conv_3x3_r4' : lambda C, stride, affine, padding_mode, jit,dropout2d: BinDilConv3x3(C, C, 3, stride = stride, affine=affine, padding=4, dilation=4, padding_mode=padding_mode,jit=jit,dropout2d=dropout2d),
+  'skip_connect' : lambda C, stride, affine, padding_mode, jit,dropout2d: EvalIdentity() if stride == 1 else BinConv1x1(C, C, stride = stride, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d)
 }
 
 
 UP_OPERATIONS= {
-  'tconv_1x1': lambda C, stride, affine: BinConvT1x1(C, C, stride = stride, affine=affine),
-  'tconv_3x3': lambda C, stride, affine: BinConvT3x3(C, C, stride = stride, affine=affine),
-  'tconv_5x5': lambda C, stride, affine: BinConvT5x5(C, C, stride = stride, affine=affine),
-  'dil_tconv_3x3_r4' : lambda C, stride, affine: BinConvT3x3(C, C, stride = stride, affine=affine,padding=4,dilation=4),
-  'dil_tconv_3x3_r6' : lambda C, stride, affine: BinConvT3x3(C, C, stride = stride, affine=affine,padding=6,dilation=6),
-  'dil_tconv_3x3_r8' : lambda C, stride, affine: BinConvT3x3(C, C, stride = stride, affine=affine,padding=8,dilation=8),
+  'tconv_1x1': lambda C, stride, affine, padding_mode, jit,dropout2d : BinConvT1x1(C, C, stride = stride, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d),
+  'tconv_3x3': lambda C, stride, affine, padding_mode, jit,dropout2d: BinConvT3x3(C, C, stride = stride, affine=affine,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d),
+  'tconv_5x5': lambda C, stride, affine, padding_mode, jit,dropout2d: BinConvT5x5(C, C, stride = stride, affine=affine,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d),
+  'dil_tconv_3x3_r4' : lambda C, stride, affine, padding_mode, jit,dropout2d: BinConvT3x3(C, C, stride = stride, affine=affine,padding=4,dilation=4, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d),
+  'dil_tconv_3x3_r6' : lambda C, stride, affine, padding_mode, jit,dropout2d: BinConvT3x3(C, C, stride = stride, affine=affine,padding=6,dilation=6,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d),
+  'dil_tconv_3x3_r8' : lambda C, stride, affine, padding_mode, jit,dropout2d: BinConvT3x3(C, C, stride = stride, affine=affine,padding=8,dilation=8,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d),
 }
 
 
 Fp_NR_OPERATIONS= {
-  'max_pool_3x3' : lambda C, stride, affine: MaxPool(in_channels=C, kernel_size=3, stride=stride, padding=1,affine=affine),
-  'avg_pool_3x3' : lambda C, stride, affine: AvgPool(in_channels=C,kernel_size=3, stride=stride, padding=1,affine=affine),
-  'conv_1x1': lambda C, stride, affine: FpConv1x1(C, C, stride = stride, affine=affine),
-  'conv_3x3': lambda C, stride, affine: FpConv3x3(C, C, stride = stride, affine=affine),
-  'dil_conv_3x3_r4' : lambda C, stride, affine: FpDilConv3x3(C, C, kernel_size=3, stride = stride, affine=affine, padding=4, dilation=4),
-  'skip_connect' : lambda C, stride, affine: Identity() if stride == 1 else FpConv1x1(C, C, stride = stride, affine=affine)
+  'max_pool_3x3' : lambda C, stride, affine,padding_mode,jit,dropout2d: MaxPool(in_channels=C, kernel_size=3, stride=stride, padding=1,affine=affine),
+  'avg_pool_3x3' : lambda C, stride, affine, padding_mode,jit,dropout2d: AvgPool(in_channels=C,kernel_size=3, stride=stride, padding=1,affine=affine),
+  'conv_1x1': lambda C, stride, affine,padding_mode,jit,dropout2d: FpConv1x1(C, C, stride = stride, affine=affine),
+  'conv_3x3': lambda C, stride, affine,padding_mode,jit,dropout2d: FpConv3x3(C, C, stride = stride, affine=affine),
+  'dil_conv_3x3_r4' : lambda C, stride, affine,padding_mode,jit,dropout2d: FpDilConv3x3(C, C, kernel_size=3, stride = stride, affine=affine, padding=4, dilation=4),
+  'skip_connect' : lambda C, stride, affine,padding_mode,jit,dropout2d: EvalIdentity() if stride == 1 else FpConv1x1(C, C, stride = stride, affine=affine)
 }
 
 
 Fp_UP_OPERATIONS= {
-  'tconv_1x1': lambda C, stride, affine: FpTConv1x1(C, C, stride = stride, affine=affine),
-  'tconv_3x3': lambda C, stride, affine: FpTConv3x3(C, C, stride = stride, affine=affine),
-  'tconv_5x5': lambda C, stride, affine: FpTConv5x5(C, C, stride = stride, affine=affine),
-  'dil_tconv_3x3_r4' : lambda C, stride, affine: FpDilTConv3x3(C, C, stride = stride, affine=affine,padding=4,dilation=4),
-  'dil_tconv_3x3_r6' : lambda C, stride, affine: FpDilTConv3x3(C, C, stride = stride, affine=affine,padding=6,dilation=6),
-  'dil_tconv_3x3_r8' : lambda C, stride, affine: FpDilTConv3x3(C, C, stride = stride, affine=affine,padding=8,dilation=8),
+  'tconv_1x1': lambda C, stride, affine,padding_mode,jit,dropout2d: FpTConv1x1(C, C, stride = stride, affine=affine),
+  'tconv_3x3': lambda C, stride, affine,padding_mode,jit,dropout2d: FpTConv3x3(C, C, stride = stride, affine=affine),
+  'tconv_5x5': lambda C, stride, affine,padding_mode,jit,dropout2d: FpTConv5x5(C, C, stride = stride, affine=affine),
+  'dil_tconv_3x3_r4' : lambda C, stride, affine,padding_mode,jit,dropout2d: FpDilTConv3x3(C, C, stride = stride, affine=affine,padding=4,dilation=4),
+  'dil_tconv_3x3_r6' : lambda C, stride, affine,padding_mode,jit,dropout2d: FpDilTConv3x3(C, C, stride = stride, affine=affine,padding=6,dilation=6),
+  'dil_tconv_3x3_r8' : lambda C, stride, affine,padding_mode,jit,dropout2d: FpDilTConv3x3(C, C, stride = stride, affine=affine,padding=8,dilation=8),
 }
 
 
@@ -91,23 +91,23 @@ class Preprocess:
     def __init__(self):
         pass
     @classmethod
-    def operations(cls, cell_type, preprocess_num,preprocess_c,c, affine):
+    def operations(cls, cell_type, preprocess_num,preprocess_c,c, affine, padding_mode, jit,dropout2d):
         if preprocess_num ==0:
             if cell_type == 'u':
-                return BinConvT1x1(in_channels=preprocess_c,stride=2, out_channels=c, kernel_size=1, affine=affine)
+                return BinConvT1x1(in_channels=preprocess_c,stride=2, out_channels=c, kernel_size=1, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d)
             elif cell_type == 'r':
-                return BinConv1x1(in_channels=preprocess_c,stride=2, out_channels=c, kernel_size=1, affine=affine)
+                return BinConv1x1(in_channels=preprocess_c,stride=2, out_channels=c, kernel_size=1, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d)
             else:
-                return BinConv1x1(in_channels=preprocess_c,stride=1, out_channels=c, kernel_size=1, affine=affine)
+                return BinConv1x1(in_channels=preprocess_c,stride=1, out_channels=c, kernel_size=1, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d)
         else:
-            return BinConv1x1(in_channels=preprocess_c,stride=1, out_channels=c, kernel_size=1, affine=affine)
+            return BinConv1x1(in_channels=preprocess_c,stride=1, out_channels=c, kernel_size=1, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d)
     
     @classmethod
     def skip(cls, cell_type, args):
         if cell_type == 'r':
             return AvgPool(*args)
         elif cell_type == 'u':
-            return Bilinear(*args)
+            return EvalBilinear(*args)
 
 
 class FpPreprocess:
@@ -115,23 +115,23 @@ class FpPreprocess:
     def __init__(self):
         pass
     @classmethod
-    def operations(cls, cell_type, preprocess_num,preprocess_c,c, affine):
+    def operations(cls, cell_type, preprocess_num,preprocess_c,c, affine, padding_mode, jit,dropout2d):
         if preprocess_num ==0:
             if cell_type == 'u':
-                return FpTConv1x1(in_channels=preprocess_c,stride=2, out_channels=c, kernel_size=1, affine=affine)
+                return FpTConv1x1(in_channels=preprocess_c,stride=2, out_channels=c, kernel_size=1, affine=affine, padding_mode=padding_mode)
             elif cell_type == 'r':
-                return FpConv1x1(in_channels=preprocess_c,stride=2, out_channels=c, kernel_size=1, affine=affine)
+                return FpConv1x1(in_channels=preprocess_c,stride=2, out_channels=c, kernel_size=1, affine=affine, padding_mode=padding_mode)
             else:
-                return FpConv1x1(in_channels=preprocess_c,stride=1, out_channels=c, kernel_size=1, affine=affine)
+                return FpConv1x1(in_channels=preprocess_c,stride=1, out_channels=c, kernel_size=1, affine=affine, padding_mode=padding_mode)
         else:
-            return FpConv1x1(in_channels=preprocess_c,stride=1, out_channels=c, kernel_size=1, affine=affine)
+            return FpConv1x1(in_channels=preprocess_c,stride=1, out_channels=c, kernel_size=1, affine=affine, padding_mode=padding_mode)
     
     @classmethod
     def skip(cls, cell_type, args):
         if cell_type == 'r':
             return AvgPool(*args)
         elif cell_type == 'u':
-            return Bilinear(*args)
+            return EvalBilinear(*args)
     
 
 

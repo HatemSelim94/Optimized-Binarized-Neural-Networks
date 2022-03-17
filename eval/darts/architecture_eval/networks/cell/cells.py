@@ -4,27 +4,27 @@ import torch.nn.functional as F
 
 from .operations.search_operations import BinConvbn1x1, BinConvT1x1, ConvBn
 
-from .operations import Sum, Preprocess, FpPreprocess,Cat
-from .edge import Edge
+from .operations import EvalSum, Preprocess, FpPreprocess,EvalCat
+from .edge import EvalEdge
 
 
 class NCell(nn.Module):
-    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,genotype,stride=1, edges_num=2, node_num=4,binary=True, affine=True):
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type,genotype,stride=1, edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros',jit=False,dropout2d=0.1):
         super(NCell, self).__init__()
         self.edges_num = edges_num
         self.node_num = node_num
         self.binary = binary
         preprocess = Preprocess if binary else FpPreprocess
-        self.preprocess0 = preprocess.operations(prev_cell_type,0,C_prev_prev, C, affine)
-        self.preprocess1 = preprocess.operations(prev_cell_type,1,C_prev, C, affine)
+        self.preprocess0 = preprocess.operations(prev_cell_type,0,C_prev_prev, C, affine, padding_mode=padding_mode,jit= jit,dropout2d=dropout2d)
+        self.preprocess1 = preprocess.operations(prev_cell_type,1,C_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d)
         self.edges = nn.ModuleList()
         i = 0 
         for _ in range(node_num):
             for _ in range(edges_num):
-                self.edges.append(Edge(C, stride, genotype[i], 'n', affine, self.binary))
+                self.edges.append(EvalEdge(C, stride, genotype[i], 'n', affine, self.binary, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d))
                 i+=1
-        self.sum = Sum()
-        self.cat = Cat()
+        self.sum = EvalSum()
+        self.cat = EvalCat()
 
     def forward(self, input0, input1,  skip_input):
         s0 = self.preprocess0(input0)
@@ -42,14 +42,14 @@ class NCell(nn.Module):
         
 
 class RCell(nn.Module):
-    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype, skip_channels=64,edges_num=2, node_num=4,binary=True, affine=True):
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype, skip_channels=64,edges_num=2, node_num=4,binary=True, affine=True, padding_mode='zeros',jit=False,dropout2d=0.1):
         super(RCell, self).__init__()
         self.edges_num = edges_num
         self.node_num = node_num
         self.binary = binary
         preprocess = Preprocess if binary else FpPreprocess
-        self.preprocess0 = preprocess.operations(prev_cell_type,0,C_prev_prev, C, affine)
-        self.preprocess1 = preprocess.operations(prev_cell_type,1,C_prev, C, affine)
+        self.preprocess0 = preprocess.operations(prev_cell_type,0,C_prev_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d)
+        self.preprocess1 = preprocess.operations(prev_cell_type,1,C_prev, C, affine, padding_mode=padding_mode,jit= jit,dropout2d=dropout2d)
         self.edges = nn.ModuleList()
         self.C = C
 
@@ -58,11 +58,11 @@ class RCell(nn.Module):
         for n in range(node_num):
             for e in range(edges_num):
                 stride = 2 if n+e <= 1 else 1
-                self.edges.append(Edge(C, stride, genotype[i],'r', affine, binary))
+                self.edges.append(EvalEdge(C, stride, genotype[i],'r', affine, binary, padding_mode=padding_mode,jit=jit,dropout2d=dropout2d))
                 i+=1
         
-        self.sum = Sum()
-        self.cat = Cat()
+        self.sum = EvalSum()
+        self.cat = EvalCat()
 
     def forward(self, input0, input1, skip_input):
         #_, c,_,_ = input1.shape
@@ -83,13 +83,13 @@ class RCell(nn.Module):
 
 
 class UCell(nn.Module):
-    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,edges_num=2, node_num=4,binary=True, affine=True) :
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1) :
         super(UCell, self).__init__()
         self.edges_num = edges_num
         self.node_num = node_num
         prprocess = Preprocess if binary else FpPreprocess
-        self.preprocess0 = prprocess.operations(prev_cell_type,0,C_prev_prev, C, affine)
-        self.preprocess1 = prprocess.operations(prev_cell_type,1,C_prev, C, affine)
+        self.preprocess0 = prprocess.operations(prev_cell_type,0,C_prev_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d)
+        self.preprocess1 = prprocess.operations(prev_cell_type,1,C_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d)
         self.edges = nn.ModuleList()
         self.binary = binary
         self.preprocess_skip = prprocess.skip('u',(2,))
@@ -98,10 +98,10 @@ class UCell(nn.Module):
         for n in range(node_num):
             for e in range(edges_num):
                 stride = 2 if n+e <= 1 else 1
-                self.edges.append(Edge(C, stride, genotype[i], 'u', affine, binary))
+                self.edges.append(EvalEdge(C, stride, genotype[i], 'u', affine, binary,padding_mode=padding_mode,jit=jit))
                 i+=1
-        self.sum = Sum()
-        self.cat = Cat()
+        self.sum = EvalSum()
+        self.cat = EvalCat()
 
     def forward(self, input0, input1, skip_input):
         s0 = self.preprocess0(input0)

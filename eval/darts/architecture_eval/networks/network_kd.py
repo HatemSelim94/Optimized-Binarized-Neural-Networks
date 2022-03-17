@@ -1,9 +1,10 @@
 from collections import OrderedDict
-
+import os 
+import json
 import torch
 import torch.nn as nn
 
-from .cell.operations.search_operations import Bilinear
+from .cell.operations.search_operations import EvalBilinear
 
 from .cell.cells import LastLayer
 
@@ -24,13 +25,12 @@ class Network_kd(nn.Module):
         self.initial_channels = args.stem_channels
         self.cells = nn.ModuleList()
         self.fp_cells = nn.ModuleList()
-        self.alphas = [torch.empty((self.nodes_num*self.edge_num ,self.ops_num), requires_grad=True, device=args.device) for _ in range(self.unique_cells_len)]
-        self.fp_alphas = [torch.empty((self.nodes_num*self.edge_num ,self.ops_num), requires_grad=True, device=args.device) for _ in range(self.unique_cells_len)]
-        for alpha in [self.alphas, self.fp_alphas]:
-            for _ in range(self.unique_cells_len):
-                nn.init.constant_(alpha, 1/self.ops_num)
+        self.genotype_path = args.genotype_path
+        self.genotypes = self.load_genotype(os.path.join(self.genotype_path, args.search_exp_name))
         self.first_layer = Stem(out_channels=self.initial_channels)
-        
+        self.jit = args.jit
+        self.dropout2d = args.dropout2d_prob
+        self.padding_mode=args.padding_mode
         c_prev_prev = self.initial_channels
         c_prev = self.initial_channels
         c = self.initial_channels
@@ -48,17 +48,17 @@ class Network_kd(nn.Module):
             else:
                 continue
             if cell_type =='r':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[idx[cell_type]],self.initial_channels, 2,self.ops_num, self.nodes_num, binary, self.affine)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type],self.initial_channels, 2,self.ops_num, self.nodes_num, binary, self.affine)
             elif cell_type == 'n':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[idx[cell_type]],1,2,self.ops_num, self.nodes_num, binary, self.affine)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type],1,2,self.ops_num, self.nodes_num, binary, self.affine)
             else:
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[idx[cell_type]], 2, self.ops_num, self.nodes_num,binary, self.affine)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell,  self.genotypes[cell_type],2, self.ops_num, self.nodes_num,binary, self.affine)
             #print(cell_specs)
             self.cells.append(NetConstructor.construct(cell_type, cell_specs))
             prev_cell = cell_type
             c_prev_prev = c_prev
             c_prev = (self.nodes_num * c) + self.initial_channels
-        #self.upsample = Bilinear(scale_factor=2)
+        #self.upsample = EvalBilinear(scale_factor=2)
         binary = False
         # teacher
         for cell_type in self.cells_sequence: 
@@ -106,10 +106,16 @@ class Network_kd(nn.Module):
         return output
     '''
     def load_genotype(self, dir=None):
-        self.idx = load_genotype(dir)
+        indices = {}
+        genotype_folder_generic = 'darts_relaxed_cell_modified_'
+        for i, cell_type in enumerate(self.unique_cells):
+            genotype_folder = genotype_folder_generic+cell_type
+            gentyoes_path = os.path.join(dir, genotype_folder)
+            with open(os.path.join(gentyoes_path,'genotype_best.json'), 'r') as f:
+                indices[cell_type] = json.load(f)
+        return indices
 
-    def save_genotype(self, dir=None, epoch=0, nodes=4):
-        save_genotype(self.model.alphas,dir, epoch,nodes=nodes)
+    
     
     def _loss(self, inputs, targets):
         predictions = self(inputs)

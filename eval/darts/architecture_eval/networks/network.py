@@ -1,15 +1,14 @@
-from ast import arg
 from collections import OrderedDict
-
+import json
 import torch
 import torch.nn as nn
 
-from .cell.operations.search_operations import Bilinear
+from .cell.operations.search_operations import EvalBilinear
 
 from .cell.cells import LastLayer
 
 from .constructor import NetConstructor
-from .utilities.genotype import save_genotype, load_genotype
+from .utilities.genotype import save_genotype
 import os
 
 class Network(nn.Module):
@@ -28,7 +27,9 @@ class Network(nn.Module):
         self.genotype_path = args.genotype_path
         self.genotypes = self.load_genotype(os.path.join(self.genotype_path, args.search_exp_name))
         self.first_layer = Stem(out_channels=self.initial_channels, affine=self.affine)
-        
+        self.jit = args.jit
+        self.dropout2d = args.dropout2d_prob
+        self.padding_mode=args.padding_mode
         c_prev_prev = self.initial_channels
         c_prev = self.initial_channels
         c = self.initial_channels
@@ -44,18 +45,18 @@ class Network(nn.Module):
             else:
                 continue
             if cell_type =='r':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type] ,self.initial_channels, 2,self.ops_num, self.nodes_num, self.binary, self.affine)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type] ,self.initial_channels, 2, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit, self.dropout2d)
             elif cell_type == 'n':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type],1,2,self.ops_num, self.nodes_num, self.binary, self.affine)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type],1,2, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit,self.dropout2d)
             else:
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type], 2, self.ops_num, self.nodes_num,self.binary, self.affine)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type], 2, self.nodes_num,self.binary, self.affine, self.padding_mode,self.jit,self.dropout2d)
             #print(cell_specs)
             self.cells.append(NetConstructor.construct(cell_type, cell_specs))
             prev_cell = cell_type
             c_prev_prev = c_prev
             c_prev = (self.nodes_num * c) + self.initial_channels
      
-        self.upsample = Bilinear(scale_factor=2)
+        self.upsample = EvalBilinear(scale_factor=2)
         self.last_layer = LastLayer(c_prev, classes_num=args.num_of_classes,affine=self.affine, binary=args.last_layer_binary, kernel_size=args.last_layer_kernel_size)
     
     def forward(self, x):
@@ -68,7 +69,14 @@ class Network(nn.Module):
         return x
 
     def load_genotype(self, dir=None):
-        load_genotype(dir)
+        indices = {}
+        genotype_folder_generic = 'darts_relaxed_cell_modified_'
+        for i, cell_type in enumerate(self.unique_cells):
+            genotype_folder = genotype_folder_generic+cell_type
+            gentyoes_path = os.path.join(dir, genotype_folder)
+            with open(os.path.join(gentyoes_path,'genotype_best.json'), 'r') as f:
+                indices[cell_type] = json.load(f)
+        return indices
     
     def _loss(self, inputs, targets):
         predictions = self(inputs)
@@ -80,7 +88,7 @@ class Network(nn.Module):
 
 
 class Stem(nn.Module):
-    def __init__(self, out_channels=64, in_channels = 3, kernel_size=3, layers_num = 1, affine=False):
+    def __init__(self, out_channels=64, in_channels = 3, kernel_size=3, layers_num = 1, affine=True):
         super(Stem, self).__init__()
         self.layers = nn.Sequential(OrderedDict([
             ('stem_conv', nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, bias=False, padding=1, stride=2)),

@@ -122,8 +122,8 @@ def train_arch(model_dataloader, arch_dataloader, arch, criterion, optimizer, ep
 def train(train_queue, model, criterion, optimizer, num_of_classes=3,device='cuda'):
   metric = SegMetrics(num_of_classes)
   train_loss = 0
+  model.train()
   for step, (imgs, trgts, _) in enumerate(train_queue):
-    model.train()
     imgs = imgs.to(device)
     trgts = trgts.to(device, non_blocking = True)
     #target = Variable(target, requires_grad=False).cuda(async=True)
@@ -190,7 +190,7 @@ class Clipper:
         elif optim == 'Adam':
             clipped_optim = ClippedAdam(*args, **kwargs)
         elif optim == 'SGD':
-            clipped_optim = ClippedSGD(*args, **kwargs)
+            clipped_optim = ClippedSGD(*args)
         return clipped_optim
             
 class ClippedAdamax(torch.optim.Adamax):
@@ -337,6 +337,9 @@ class DataPlotter:
             ax[1].legend()
             ax[0].set_xlabel(self.__epochs)
             ax[1].set_xlabel(self.__epochs)
+            ax[0].legend(loc=1)
+            ax[1].legend(loc=1)
+            plt.tight_layout()
         if save:
             plt.savefig(os.path.join(self.file_path,mode)+'_plot.png', dpi =dpi)
         if verpose:
@@ -366,16 +369,3 @@ def prepare_ops_metrics(net, input_shape):
     calculate_ops_metrics(net, input_shape)
     calculate_ops_latency(net, input_shape)
     calculate_min(net)
-
-
-def get_losses(net, binary=True):
-    ops_loss = 0
-    params_loss = 0
-    latency_loss = 0
-    cells = net.cells if binary else net.fp_cells
-    for cell in cells:
-        ops_loss += cell.forward_ops()
-        params_loss += cell.forward_params()
-        latency_loss += cell.forward_latency()
-    #print(ops_loss, params_loss, latency_loss)
-    return ops_loss, params_loss, latency_loss

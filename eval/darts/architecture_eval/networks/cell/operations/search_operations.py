@@ -60,54 +60,54 @@ class FpConv3x3bn(FpConvBnHardtanh):
 
 ####################
 # bin ops
-class BinConvT1x1(TConvBnHTanhBin):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=2, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False):
-        super(BinConvT1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit)
+class BinConvT1x1(BinTConvBnHTanh):
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=2, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1):
+        super(BinConvT1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,dropout2d)
         
 
 
-class BinConvT3x3(TConvBnHTanhBin):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=2, padding=1, dilation=1, affine=True,padding_mode='zeros',jit=False):
-        super(BinConvT3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit)
+class BinConvT3x3(BinTConvBnHTanh):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=2, padding=1, dilation=1, affine=True,padding_mode='zeros',jit=False,dropout2d=0.1):
+        super(BinConvT3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,dropout2d)
         
 
 
-class BinConvT5x5(TConvBnHTanhBin):
-    def __init__(self, in_channels, out_channels, kernel_size=5, stride=2, padding=1, dilation=1, affine=True, padding_mode='zeros', jit=False):
-        super(BinConvT5x5, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit)
+class BinConvT5x5(BinTConvBnHTanh):
+    def __init__(self, in_channels, out_channels, kernel_size=5, stride=2, padding=1, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1):
+        super(BinConvT5x5, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,dropout2d)
         
 
 
-class BinDilConv3x3(ConvBnHTanhBin):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=2, dilation=2,affine=True, padding_mode='zeros',jit=False):
-        super(BinDilConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode,jit)
+class BinDilConv3x3(BinConvBnHTanh):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=2, dilation=2,affine=True, padding_mode='zeros',jit=False,dropout2d=0.1):
+        super(BinDilConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode,jit,dropout2d)
         
 
 
-class BinConv1x1(ConvBnHTanhBin):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros',jit=False):
-        super(BinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode,jit)
+class BinConv1x1(BinConvBnHTanh):
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros',jit=False,dropout2d=0.1):
+        super(BinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode,jit,dropout2d)
         
 
 class BinConvbn1x1(BinConvBn):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False):
-        super(BinConvbn1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode, jit)
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1):
+        super(BinConvbn1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode, jit,dropout2d)
 
 
 class Convbn1x1(ConvBn):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False):
-        super(Convbn1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode, jit)
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1):
+        super(Convbn1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode, jit,dropout2d)
 
 
-class BinConv3x3(ConvBnHTanhBin):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1, affine=True, padding_mode='zeros', jit=False):
-        super(BinConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit)
+class BinConv3x3(BinConvBnHTanh):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1):
+        super(BinConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit, dropout2d)
         
 
 
-class Identity(nn.Module):
+class EvalIdentity(nn.Module):
     def __init__(self, params=None):
-        super(Identity, self).__init__()
+        super(EvalIdentity, self).__init__()
         
     
     def forward(self, x):
@@ -135,9 +135,9 @@ class Identity(nn.Module):
         return cls(**config)
 
 
-class Bilinear(nn.Upsample):
+class EvalBilinear(nn.Upsample):
     def __init__(self, size= None, scale_factor = 2, mode: str = 'bilinear', align_corners = False):
-        super(Bilinear, self).__init__(scale_factor=scale_factor, mode=mode, align_corners=align_corners)
+        super(EvalBilinear, self).__init__(scale_factor=scale_factor, mode=mode, align_corners=align_corners)
 
 
 class AvgPool(nn.Module):
@@ -147,6 +147,7 @@ class AvgPool(nn.Module):
         padding = kernel_size//2
         self.avgpool = nn.AvgPool2d(kernel_size, stride, padding)
         self.batchnorm = nn.BatchNorm2d(in_channels, affine=affine)
+        self.hardtanh= nn.Hardtanh(-1,1,inplace=True)
         self.in_channels = in_channels
         
     
@@ -154,6 +155,7 @@ class AvgPool(nn.Module):
         x = self.avgpool(x)
         #print(x.shape)
         x = self.batchnorm(x)
+        x =self.hardtanh(x)
         return x
 
     def ops(self, x):
@@ -212,6 +214,7 @@ class MaxPool(nn.Module):
         self.maxpool = nn.MaxPool2d(kernel_size, stride, padding,dilation)
         self.batchnorm = nn.BatchNorm2d(in_channels, affine=affine)
         self.in_channels = in_channels
+        self.hardtanh= nn.Hardtanh(-1,1,inplace=True)
         
     
     def forward(self, x):
@@ -219,6 +222,7 @@ class MaxPool(nn.Module):
         x = self.maxpool(x)
         #print(x.shape)
         x = self.batchnorm(x)
+        x =self.hardtanh(x)
         return x
 
     def ops(self, x):
@@ -269,9 +273,9 @@ class MaxPool(nn.Module):
         return cls(**config)
 
 
-class Cat(nn.Module):
+class EvalCat(nn.Module):
     def __init__(self, dim=1, not_bin=0):
-        super(Cat, self).__init__()
+        super(EvalCat, self).__init__()
         self.dim = dim
         self.not_bin = not_bin
     def forward(self, x):
@@ -302,9 +306,9 @@ class Cat(nn.Module):
         return 0
 
 
-class Sum(nn.Module):
+class EvalSum(nn.Module):
     def __init__(self, dim=1, not_bin=0):
-        super(Sum, self).__init__()
+        super(EvalSum, self).__init__()
         self.dim = dim
         self.not_bin = not_bin
     def forward(self, x):

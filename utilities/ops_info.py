@@ -5,11 +5,14 @@ import numpy as np
 import sys
 sys.path.append('search/darts/')
 sys.path.append('eval/darts/')
+
+from architecture_eval.networks.cell.operations.binarization.binarized_layers import EvalBinConvTranspose2d, EvalBinConv2d, EvalBinActivation
+from architecture_eval.networks.cell.operations.search_operations import EvalCat, EvalSum, EvalBilinear, EvalIdentity
+
+
 from architecture.networks.cell.operations.binarization.binarized_layers import BinConvTranspose2d, BinConv2d, BinActivation
 from architecture.networks.cell.operations.search_operations import Cat, Sum, Bilinear, Identity
 
-from architecture_eval.networks.cell.operations.binarization.binarized_layers import BinConvTranspose2d, BinConv2d, BinActivation as EvalBinConvTranspose2d, EvalBinConv2d, EvalBinActivation
-from architecture_eval.networks.cell.operations.search_operations import Cat, Sum, Bilinear, Identity as EvalCat, EvalSum, EvalBilinear, EvalIdentity
 
 
 def identity_ops_forward_hook(mod, input, output):
@@ -52,6 +55,7 @@ def sum_ops_forward_hook(mod, input, output):
             if unique_vals <= 3:
                 if unique_vals == 3:
                     print('Warning: Ternary')
+                    print(input[0][0].shape)
                 bin_inputs += 1
         if bin_inputs == 0:
             ops = np.prod(output.shape)*(list_len-1)
@@ -63,6 +67,7 @@ def sum_ops_forward_hook(mod, input, output):
             if unique_vals <= 3:
                 if unique_vals == 3:
                     print('Warning: Ternary')
+                    print(input[0].shape)
                 ops = np.prod(output.shape)*1/64
             else:
                 ops = np.prod(output.shape)

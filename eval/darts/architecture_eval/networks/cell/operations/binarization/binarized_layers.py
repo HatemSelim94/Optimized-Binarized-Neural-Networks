@@ -19,10 +19,10 @@ def _ntuple(n):
 
 _pair = _ntuple(2)
 
-class BinActivation(nn.Module):
+class EvalBinActivation(nn.Module):
     def __init__(self, jit=False):
         self.jit = jit
-        super(BinActivation, self).__init__()    
+        super(EvalBinActivation, self).__init__()    
     def forward(self, x):
         if self.jit:
             output = x.sign()
@@ -31,14 +31,14 @@ class BinActivation(nn.Module):
         return binarize(x)
 
 
-class BinConv2d(nn.Conv2d):
+class EvalBinConv2d(nn.Conv2d):
     def __init__(self, in_channels: int, out_channels: int, kernel_size, stride = 1, padding = 0, dilation = 1, groups: int = 1, bias: bool = False, padding_mode: str = 'zeros', device=None, dtype=None, jit=False):
         self.jit=jit
         if dilation ==1:
             padding = [int(kernel_size//2), int(kernel_size//2)]
         else:
             padding = [int(padding), int(padding)]
-        super(BinConv2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias, padding_mode, device, dtype,)
+        super(EvalBinConv2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, groups, bias, padding_mode, device, dtype)
         self.weight.bin = True
     
     def forward(self, x):
@@ -59,9 +59,9 @@ class BinConv2d(nn.Conv2d):
         #else:
         #    return F.conv2d(F.pad(x, self._reversed_padding_repeated_twice(),self.padding_mode), binary_weights, stride=self.stride, padding=self.padding, dilation=self.dilation)
 
-class BinConvTranspose2d(nn.ConvTranspose2d):
+class EvalBinConvTranspose2d(nn.ConvTranspose2d):
     def __init__(self, in_channels: int, out_channels: int, kernel_size, stride = 1, padding= 0, output_padding = 0, groups: int = 1, bias: bool = True, dilation: int = 1, padding_mode: str = 'zeros', device=None, dtype=None, jit=False):
-        super(BinConvTranspose2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, output_padding, groups, bias, dilation, padding_mode, device, dtype)
+        super(EvalBinConvTranspose2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, output_padding, groups, bias, dilation, padding_mode, device, dtype)
         self.jit = jit
         if dilation ==1:
             self.padding = [self.kernel_size[0]//2, self.kernel_size[1]//2]

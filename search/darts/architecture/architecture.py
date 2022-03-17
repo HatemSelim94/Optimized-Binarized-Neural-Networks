@@ -1,7 +1,6 @@
 import torch
 import torch.optim as optim
 
-from utilities.train_skeleton import get_losses
 from .networks.utilities.genotype import save_genotype
 
 class Architecture:
@@ -22,12 +21,23 @@ class Architecture:
     
     def _backward_step(self, arch_predictions, arch_targets):
         loss = self.model._loss(arch_predictions, arch_targets)
-        ops_loss, params_loss, latency_loss = get_losses(self.model)
+        ops_loss, params_loss, latency_loss = self.get_losses()
         total_loss = self.beta*ops_loss**2 + self.gamma* params_loss**2 + self.delta* latency_loss**2 + loss
         total_loss.backward()
         #return loss.item()
     
     def save_genotype(self, dir=None, epoch=0, nodes=4):
         save_genotype(self.model.alphas, dir, epoch, nodes, self.model.unique_cells)
-
+    
+    def get_losses(self, binary=True):
+        ops_loss = 0
+        params_loss = 0
+        latency_loss = 0
+        cells = self.model.cells if binary else self.model.fp_cells
+        for cell in cells:
+            ops_loss += cell.forward_ops()
+            params_loss += cell.forward_params()
+            latency_loss += cell.forward_latency()
+        #print(ops_loss, params_loss, latency_loss)
+        return ops_loss, params_loss, latency_loss
         

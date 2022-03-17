@@ -91,10 +91,10 @@ def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u']):
         save_cell_idx(cell_idx,type,dir,epoch)
     return indices
 
-def load_genotype(dir):
+def load_genotype(dir, unique_cells):
     indices = {}
     genotype_folder_generic = 'darts_relaxed_cell_modified_'
-    for i, cell_type in enumerate(self.unique_cells):
+    for i, cell_type in enumerate(unique_cells):
         genotype_folder = genotype_folder_generic+cell_type
         gentyoes_path = os.path.join(dir, genotype_folder)
         with open(os.dir.join(gentyoes_path,'genotype_best.json'), 'r') as f:

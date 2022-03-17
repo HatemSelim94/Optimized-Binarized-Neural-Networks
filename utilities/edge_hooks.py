@@ -8,6 +8,7 @@ from architecture.networks.cell.edge import Edge
 from architecture_eval.networks.cell.edge import EvalEdge
 
 
+
 def total_metrics_hook(mod, input, output):
     total_ops = [0]
     total_params = [0]

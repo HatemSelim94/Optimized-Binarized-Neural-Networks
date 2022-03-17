@@ -19,7 +19,8 @@ def memory_forward_hook(mod, input, output):
             unique_vals = torch.unique(input[0][i]).shape[0]
             if unique_vals <= 3:
                 if unique_vals == 3:
-                    print('Warning: Ternary')
+                    print(mod)
+                    print('Warning: Ternary Input')
                 input_mem += np.prod(input[0][i].shape)*1/8
             else:
                 input_mem += np.prod(input[0][i].shape)*32/8
@@ -27,7 +28,8 @@ def memory_forward_hook(mod, input, output):
         unique_vals = torch.unique(input[0]).shape[0]
         if unique_vals <= 3:
             if unique_vals == 3:
-                    print('Warning: Ternary')
+                    print(mod)
+                    print('Warning: Ternary Input')
             input_mem += np.prod(input[0].shape)*1/8
         else:
             input_mem += np.prod(input[0].shape)*32/8
@@ -35,7 +37,8 @@ def memory_forward_hook(mod, input, output):
     unique_vals = torch.unique(output).shape[0]
     if unique_vals <= 3:
         if unique_vals == 3:
-                print('Warning: Ternary')
+                print(mod)
+                print('Warning: Ternary Output')
         output_mem += np.prod(output[0].shape)*1/8
     else:
         output_mem += np.prod(output[0].shape)*32/8
