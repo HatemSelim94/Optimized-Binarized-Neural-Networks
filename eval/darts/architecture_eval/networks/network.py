@@ -32,6 +32,7 @@ class Network(nn.Module):
         self.network_type = args.network_type
         self.dropout2d = args.dropout2d_prob
         self.padding_mode=args.padding_mode
+        self.binarization = args.binarization
         c_prev_prev = self.initial_channels
         c_prev = self.initial_channels
         c = self.initial_channels
@@ -47,11 +48,11 @@ class Network(nn.Module):
             else:
                 continue
             if cell_type =='r':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type] ,self.initial_channels, 2, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit, self.dropout2d)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type] ,self.initial_channels, 2, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit, self.dropout2d,self.binarization)
             elif cell_type == 'n':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type],1,2, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit,self.dropout2d)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type],1,2, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit,self.dropout2d, self.binarization)
             else:
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type], 2, self.nodes_num,self.binary, self.affine, self.padding_mode,self.jit,self.dropout2d)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type], 2, self.nodes_num,self.binary, self.affine, self.padding_mode,self.jit,self.dropout2d, self.binarization)
             #print(cell_specs)
             self.cells.append(NetConstructor.construct(cell_type, cell_specs))
             prev_cell = cell_type
@@ -64,9 +65,9 @@ class Network(nn.Module):
         elif self.network_type == 'aspp':
             scale = 4
             last_layer_ch = 64
-            self.binaspp = BinASPP(c_prev, 64, self.padding_mode, self.jit, self.dropout2d, rates=[4,8,12,18])
+            self.binaspp = BinASPP(c_prev, 64, self.padding_mode, self.jit, self.dropout2d, rates=[4,8,12,18], binarization =self.binarization)
         self.upsample = EvalBilinear(scale_factor=scale)
-        self.last_layer = LastLayer(last_layer_ch, classes_num=args.num_of_classes,affine=self.affine, binary=args.last_layer_binary, kernel_size=args.last_layer_kernel_size,jit=args.jit)
+        self.last_layer = LastLayer(last_layer_ch, classes_num=args.num_of_classes,affine=self.affine, binary=args.last_layer_binary, kernel_size=args.last_layer_kernel_size,jit=args.jit, binarization=self.binarization)
         if self.jit or self.onnx:
             self.transforms = nn.Sequential(T.CenterCrop([448,448]), T.Resize([args.image_size, args.image_size]))
     def forward(self, x):

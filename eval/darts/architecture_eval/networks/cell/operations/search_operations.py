@@ -61,52 +61,52 @@ class FpConv3x3bn(FpConvBnHardtanh):
 ####################
 # bin ops
 class BinConvT1x1(BinTConvBnHTanh):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=2, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1):
-        super(BinConvT1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,dropout2d)
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=2, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1,binarizatoin=1):
+        super(BinConvT1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,dropout2d, binarizatoin)
         
 
 
 class BinConvT3x3(BinTConvBnHTanh):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=2, padding=1, dilation=1, affine=True,padding_mode='zeros',jit=False,dropout2d=0.1):
-        super(BinConvT3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,dropout2d)
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=2, padding=1, dilation=1, affine=True,padding_mode='zeros',jit=False,dropout2d=0.1, binarizatoin=1):
+        super(BinConvT3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,dropout2d,binarizatoin)
         
 
 
 class BinConvT5x5(BinTConvBnHTanh):
-    def __init__(self, in_channels, out_channels, kernel_size=5, stride=2, padding=1, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1):
-        super(BinConvT5x5, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,dropout2d)
+    def __init__(self, in_channels, out_channels, kernel_size=5, stride=2, padding=1, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1, binarizatoin=1):
+        super(BinConvT5x5, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,dropout2d, binarizatoin)
         
 
 
 class BinDilConv3x3(BinConvBnHTanh):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=2, dilation=2,affine=True, padding_mode='zeros',jit=False,dropout2d=0.1):
-        super(BinDilConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode,jit,dropout2d)
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=2, dilation=2,affine=True, padding_mode='zeros',jit=False,dropout2d=0.1, binarizatoin=1):
+        super(BinDilConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode,jit,dropout2d,binarizatoin)
         
 
 
 class BinConv1x1(BinConvBnHTanh):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros',jit=False,dropout2d=0.1):
-        super(BinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode,jit,dropout2d)
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros',jit=False,dropout2d=0.1, binarizatoin=1):
+        super(BinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode,jit,dropout2d,binarizatoin)
         
-
+# last layer
 class BinConvbn1x1(BinConvBn):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1):
-        super(BinConvbn1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode, jit,dropout2d)
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1, binarizatoin=1):
+        super(BinConvbn1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode, jit,dropout2d,binarizatoin)
 
 
 class Convbn1x1(ConvBn):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1):
-        super(Convbn1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode, jit,dropout2d)
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1, binarizatoin=1):
+        super(Convbn1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode, jit,dropout2d,binarizatoin)
 
 
 class BinConv3x3(BinConvBnHTanh):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1):
-        super(BinConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit, dropout2d)
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1, binarizatoin=1):
+        super(BinConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit, dropout2d, binarizatoin)
         
 
 class BasicBinConv1x1(BinConv):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False):
-        super(BasicBinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit)
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False, binarizatoin=1):
+        super(BasicBinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,binarizatoin)
 
 class EvalIdentity(nn.Module):
     def __init__(self, params=None):

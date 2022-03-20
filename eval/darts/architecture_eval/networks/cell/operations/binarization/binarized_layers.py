@@ -1,13 +1,14 @@
 import torch.nn as nn
 import torch.nn.functional as F
 from .basic import Binarization1 as Binarization
+from .basic import Binarization2 
 
 import collections
 from itertools import repeat
 
 
 binarize = Binarization.apply
-
+binarize2= Binarization2.apply
 def _ntuple(n):
     def parse(x):
         if isinstance(x, collections.abc.Iterable):
@@ -20,15 +21,19 @@ def _ntuple(n):
 _pair = _ntuple(2)
 
 class EvalBinActivation(nn.Module):
-    def __init__(self, jit=False):
+    def __init__(self, jit=False, binarization=1):
         self.jit = jit
+        self.binarization = binarization
         super(EvalBinActivation, self).__init__()    
     def forward(self, x):
         if self.jit:
             output = x.sign()
             output[x==0]=1
             return output
-        return binarize(x)
+        if self.binarization ==1:
+            return binarize(x)
+        elif self.binarization ==2:
+            return binarize2(x)
 
 
 class EvalBinConv2d(nn.Conv2d):
