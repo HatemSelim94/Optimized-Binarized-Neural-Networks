@@ -7,14 +7,15 @@ class ImagePooling(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1):
         super(ImagePooling, self).__init__()
         self.layers = nn.Sequential(nn.AdaptiveAvgPool2d(1), # coud be done in the forward method by torch.mean(input, (-1,-2), keepdim=True)
-                      ConvBnReLUPooling(in_channels, out_channels,kernel_size, stride,padding,dilation,bias=True)
+                      nn.Conv2d(in_channels, out_channels,kernel_size, stride,padding,dilation,bias=False)
         )
+        self.batchnorm = nn.BatchNorm2d(out_channels)
 
     def forward(self, x):
         image_size = x.shape[-2:]
         output = self.layers(x)
         output = F.interpolate(output, size=image_size, mode='bilinear', align_corners=False)
-        return output
+        return self.batchnorm(output)
 
 class ASPP(nn.Module):
     def __init__(self, in_channels, rates = [6,12,18], out_channels=256):
@@ -75,16 +76,6 @@ class ConvBnReLU(nn.Sequential):
     def forward(self, x):
         return self.layers(x)
 
-class ConvBnReLUPooling(nn.Sequential):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=0, dilation=1, bias=True):
-        super(ConvBnReLUPooling, self).__init__()
-        self.layers = nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size,padding=padding,dilation=dilation, stride=stride, bias=bias),
-            #nn.LayerNorm(out_channels),
-            nn.ReLU()
-        )
-    def forward(self, x):
-        return self.layers(x)
 
 class Decoder(nn.Module):
     def __init__(self, encoder_output_channels = 256, low_level_features_channels=64): 

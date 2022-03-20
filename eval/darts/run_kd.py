@@ -59,7 +59,7 @@ def main():
     clean_dir(args)
     if not torch.cuda.is_available():
         sys.exit(1)
-    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, weight=KittiDataset.loss_weights_3, label_smoothing=0.2)
+    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, label_smoothing=0.2)
     criterion = criterion.to(args.device)  
     net = Network_kd(args).to(args.device)
     net._set_criterion(criterion)

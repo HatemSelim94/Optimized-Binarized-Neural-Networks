@@ -4,8 +4,8 @@ import torch
 import torch.nn as nn
 
 from .cell.operations.search_operations import EvalBilinear
-
-from .cell.cells import LastLayer
+import torchvision.transforms.transforms as T
+from .cell.cells import LastLayer, BinASPP
 
 from .constructor import NetConstructor
 from .utilities.genotype import save_genotype
@@ -28,6 +28,8 @@ class Network(nn.Module):
         self.genotypes = self.load_genotype(os.path.join(self.genotype_path, args.search_exp_name))
         self.first_layer = Stem(out_channels=self.initial_channels, affine=self.affine)
         self.jit = args.jit
+        self.onnx = args.onnx
+        self.network_type = args.network_type
         self.dropout2d = args.dropout2d_prob
         self.padding_mode=args.padding_mode
         c_prev_prev = self.initial_channels
@@ -55,15 +57,27 @@ class Network(nn.Module):
             prev_cell = cell_type
             c_prev_prev = c_prev
             c_prev = (self.nodes_num * c) + self.initial_channels
-     
-        self.upsample = EvalBilinear(scale_factor=2)
-        self.last_layer = LastLayer(c_prev, classes_num=args.num_of_classes,affine=self.affine, binary=args.last_layer_binary, kernel_size=args.last_layer_kernel_size)
-    
+        
+        if self.network_type == 'cells':
+            scale = 2
+            last_layer_ch = c_prev
+        elif self.network_type == 'aspp':
+            scale = 4
+            last_layer_ch = 64
+            self.binaspp = BinASPP(c_prev, 64, self.padding_mode, self.jit, self.dropout2d, rates=[4,8,12,18])
+        self.upsample = EvalBilinear(scale_factor=scale)
+        self.last_layer = LastLayer(last_layer_ch, classes_num=args.num_of_classes,affine=self.affine, binary=args.last_layer_binary, kernel_size=args.last_layer_kernel_size,jit=args.jit)
+        if self.jit or self.onnx:
+            self.transforms = nn.Sequential(T.CenterCrop([448,448]), T.Resize([args.image_size, args.image_size]))
     def forward(self, x):
+        if self.jit or self.onnx:
+            x = self.transforms(x)
         s0 = s1=skip_input= self.first_layer(x)
         for cell in self.cells:
             s0, (s1, skip_input) = s1, cell(s0, s1, skip_input)
             #print(s0.shape, s1.shape, skip_input.shape)
+        if self.network_type == 'aspp':
+            x = self.binaspp(x)
         x = self.upsample(s1)
         x = self.last_layer(x)
         return x

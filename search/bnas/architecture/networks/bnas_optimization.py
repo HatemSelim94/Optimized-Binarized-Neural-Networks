@@ -1,5 +1,6 @@
 import json
 import random
+from typing import Dict
 import numpy as np
 import copy
 
@@ -21,16 +22,17 @@ def in_range(num, min_limit=0, max_limit=2):
 
 
 
-class Cells:
-    types = ['normal','reduction','upsample'] 
-    def __init__(self, primitives, nodes=4, t=4,binary=True, latency=False, beta=None):
+class Cells: 
+    def __init__(self, cell_types,primitives, nodes=4, t=4,binary=True, latency=False, beta=None):
         '''
         primitives(dict): dictionary of operations for each cell
         nodes(int): number of nodes in a cell
+        t(int): number of samples
         latency(bool): optimize for latency
         beta(float): a coefficient for latency. The expected value should be in range [0, 2], zero represents
         an optimization for validation score and two for latency.
         '''
+        self.types = cell_types
         self.nodes_no = nodes
         self._set_edge_no()
         self.edges = {}
@@ -47,7 +49,7 @@ class Cells:
             self.edges[cell_type] = Edges(primitives[cell_type], self.edges_no,t,latency, latency_table)
         
         
-    def set_worst_primitives(self, worst_idx):
+    def set_worst_primitives(self, worst_idx:Dict):
         for cell_type in self.types:
             self.edges[cell_type].set_worst_primitives(worst_idx[cell_type].numpy().tolist())
 
@@ -78,10 +80,7 @@ class Cells:
             self.edges[cell_type].update_scores(sample[cell_type], t, score)
     
     def _set_edge_no(self):
-        edges = 0
-        for i in range(self.nodes_no):
-            edges += 2+i
-        self.edges_no= edges
+        self.edges_no= self.nodes_no*2
 
     def load_latency_table(self, binary =True ,filename="arch_search/bnas_latency_table"):
         filename = filename + '_bn' if binary else filename +'_fp'
@@ -89,7 +88,7 @@ class Cells:
             self.latency_table = json.load(f) 
 
 class Edges:
-    # two networks train network and sample network
+    # two networks, train network and sample network
     def __init__(self, primitives, edges=4, t=4, latency=False, latency_table = None):
         self.edges_no = edges
         #self.primitives = copy.deepcopy(primitives) # will be returened as indices each time the train network works

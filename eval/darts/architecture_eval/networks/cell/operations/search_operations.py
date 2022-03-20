@@ -6,7 +6,7 @@ import numpy as np
 from .latency import get_latency
 from .memory import MemoryCounter
 from .flops import FlopsCounter
-from .binarization.binarized_blocks import BinConvBnHTanh, BinTConvBnHTanh, BinConvBn,ConvBn
+from .binarization.binarized_blocks import BinConvBnHTanh, BinTConvBnHTanh, BinConvBn,ConvBn, BinConv
 from .binarization.binarized_blocks import ConvBnHTanhBin, TConvBnHTanhBin 
 from .fp.fp_block import FpConvBnHardtanh, FpTConvBnHardtanh
 
@@ -104,6 +104,9 @@ class BinConv3x3(BinConvBnHTanh):
         super(BinConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit, dropout2d)
         
 
+class BasicBinConv1x1(BinConv):
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False):
+        super(BasicBinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit)
 
 class EvalIdentity(nn.Module):
     def __init__(self, params=None):

@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .operations.search_operations import BinConvbn1x1, BinConvT1x1, ConvBn
+from .operations.search_operations import BinConvbn1x1, BinConvT1x1, ConvBn, BasicBinConv1x1, BinDilConv3x3
 
-from .operations import EvalSum, Preprocess, FpPreprocess,EvalCat
+from .operations import EvalSum, Preprocess, FpPreprocess,EvalCat, EvalBilinear
 from .edge import EvalEdge
 
 
@@ -121,23 +121,56 @@ class UCell(nn.Module):
 
 
 class LastLayer(nn.Module):
-    def __init__(self, in_channels, classes_num=3, binary=True, affine=True, kernel_size=3):
+    def __init__(self, in_channels, classes_num=3, binary=True, affine=True, kernel_size=3, jit = False):
         super(LastLayer, self).__init__() 
-        conv = BinConvbn1x1 if binary else nn.Conv2d
-        #conv = ConvBn if binary else nn.Conv2d
-        self.layers = nn.Sequential(
-            #BinConvT1x1(in_channels, 30, affine=False),
-            conv(in_channels, classes_num, kernel_size)
-            )
-        if not binary:
-            self.layers.add_module(
+        if binary:
+            self.layers = nn.Sequential(
+                BinConvbn1x1(in_channels, classes_num, kernel_size, jit=jit)
+                )
+        else:
+            self.layers = nn.Sequential(
+                nn.Conv2d(in_channels, classes_num, kernel_size),
                 nn.BatchNorm2d(classes_num, affine=affine)
             )
     def forward(self, x):
         x = self.layers(x)
         return x
 
-        
+
+class Pooling(nn.Module):
+    def __init__(self, in_channels, out_channels,padding_mode,jit=False, dropout2d=0.0):
+        super(Pooling,self).__init__()
+        self.adaptive_pooling = nn.AdaptiveAvgPool2d(1)
+        self.conv1= BasicBinConv1x1(in_channels, out_channels,1,padding_mode=padding_mode ,jit=jit)
+        #self.upsample = EvalBilinear()
+        self.batchnorm = nn.BatchNorm2d(out_channels, affine=True)
+    
+    def forward(self, x):
+        img_size = x.shape[-2:]
+        x = self.adaptive_pooling(x)
+        x = self.conv1(x)
+        x = F.interpolate(x, size=img_size, mode='bilinear', align_corners=False)
+        x = self.batchnorm(x)
+        return x
+
+
+class BinASPP(nn.Module):
+    def __init__(self, in_channels, out_channels,padding_mode,jit, dropout2d, rates=[1,4,8,12]):
+        super(BinASPP, self).__init__()
+        self.layers = nn.ModuleList()
+        self.layers.append(Pooling(in_channels, out_channels, padding_mode,jit, dropout2d))
+        self.layers.append(BinConvbn1x1(in_channels, out_channels,padding_mode=padding_mode, jit=jit, dropout2d=dropout2d))
+        for r in rates:
+            self.layers.append(BinDilConv3x3(in_channels, out_channels,stride=1, padding=r,dilation=r, padding_mode=padding_mode,jit=jit, dropout2d=dropout2d))
+        self.sum = EvalSum()
+
+    def forward(self, x):
+        output = []
+        for mod in self.layers:
+            output.append(mod(x))
+        s = torch.sum(torch.stack(output, dim=1), dim=1)
+        return s 
+
 
 if __name__ == '__main__':
     c = NCell(20, 10, 20, 1, 'r')

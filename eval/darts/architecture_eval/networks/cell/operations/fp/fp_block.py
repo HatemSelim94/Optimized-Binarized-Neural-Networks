@@ -11,11 +11,11 @@ class FpConvBnHardtanh(nn.Module):
         self.layers = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, stride=stride, padding=padding, padding_mode=padding_mode, dilation=dilation,bias=False))
         if bn_layer:
-            self.layers.add_module(
-                nn.BatchNorm2d(in_channels, affine=affine)
+            self.layers.add_module('BatchNorm',
+                nn.BatchNorm2d(out_channels, affine=affine)
             )
         if activation:
-            self.layers.add_module(
+            self.layers.add_module('Activation',
                 nn.Hardtanh(min_val=-1, max_val=1, inplace=True)
             )
     def forward(self, x):
@@ -37,11 +37,11 @@ class FpTConvBnHardtanh(nn.Module):
         self.layers = nn.Sequential(
             nn.ConvTranspose2d(in_channels=in_channels, out_channels=out_channels, kernel_size=kernel_size, stride=stride, padding=padding, padding_mode=padding_mode, bias=False, dilation=dilation, output_padding=output_padding))
         if bn_layer:
-            self.layers.add_module(
-                nn.BatchNorm2d(in_channels, affine=affine)
+            self.layers.add_module('BatchNorm',
+                nn.BatchNorm2d(out_channels, affine=affine)
             )
         if activation:
-            self.layers.add_module(
+            self.layers.add_module('Activation',
                 nn.Hardtanh(min_val=-1, max_val=1, inplace=True)
             )
     def forward(self, x):

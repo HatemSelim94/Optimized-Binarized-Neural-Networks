@@ -61,7 +61,7 @@ class EvalBinConv2d(nn.Conv2d):
 
 class EvalBinConvTranspose2d(nn.ConvTranspose2d):
     def __init__(self, in_channels: int, out_channels: int, kernel_size, stride = 1, padding= 0, output_padding = 0, groups: int = 1, bias: bool = True, dilation: int = 1, padding_mode: str = 'zeros', device=None, dtype=None, jit=False):
-        super(EvalBinConvTranspose2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, output_padding, groups, bias, dilation, padding_mode, device, dtype)
+        super(EvalBinConvTranspose2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, output_padding, groups, bias, dilation, 'zeros', device, dtype)
         self.jit = jit
         if dilation ==1:
             self.padding = [self.kernel_size[0]//2, self.kernel_size[1]//2]

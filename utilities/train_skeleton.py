@@ -188,7 +188,7 @@ class Clipper:
         if optim == 'Adamax':
            clipped_optim = ClippedAdamax(*args)
         elif optim == 'Adam':
-            clipped_optim = ClippedAdam(*args, **kwargs)
+            clipped_optim = ClippedAdam(*args)
         elif optim == 'SGD':
             clipped_optim = ClippedSGD(*args)
         return clipped_optim
@@ -369,3 +369,13 @@ def prepare_ops_metrics(net, input_shape):
     calculate_ops_metrics(net, input_shape)
     calculate_ops_latency(net, input_shape)
     calculate_min(net)
+
+def jit_save(model, input_shape, dir,device='cuda'):
+    dummy_input = torch.randn(input_shape).to(device)
+    traced_obj  = torch.jit.trace(model, dummy_input)
+    torch.jit.save(traced_obj, os.path.join(dir,'jit_model.pt'))
+
+def onnx_save(model, input_shape, dir,device='cuda',opset=11):
+    dummy_input = torch.randn(input_shape).to(device)
+    torch.onnx.export(model, dummy_input, 
+                    os.path.join(dir,'onnx_model.pt'), input_names=['input'],output_names=['output'], export_params=True,verbose=False, opset_version=opset)

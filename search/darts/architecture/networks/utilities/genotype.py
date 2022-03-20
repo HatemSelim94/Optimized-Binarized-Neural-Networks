@@ -81,12 +81,12 @@ def save_cell_idx(cell_idx:torch.Tensor, type, dir, epoch=0):
         json.dump(cell_idx.tolist(),f)
     
 
-def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u']):
+def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u'], best=1):
     def best_pick(alphas):
         best_alphas = []
         for alpha in alphas:
             with torch.no_grad():
-                best_alphas.append(torch.topk(alpha, 1, dim=-1)[-1])
+                best_alphas.append(torch.topk(alpha, best, dim=-1)[-1])
         return best_alphas
     indices = best_pick(alphas)
     for cell_idx, type in zip(indices, types):

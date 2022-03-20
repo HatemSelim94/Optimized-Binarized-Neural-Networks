@@ -17,7 +17,7 @@ class EvalEdge(nn.Module):
         operations = ops_constructor.get_ops(cell_type)
         for i, primitive in enumerate(primitives):
             if i in ops_idx:
-                self.ops.append(operations[primitive](C, stride, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d))
+                self.ops.append(operations[primitive](C=C, stride=stride, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d))
                 self.ops[-1].edge_layer=True
                 #print(self.ops[-1])
         self.C = C

@@ -65,14 +65,3 @@ class Binarization2(Function): # structured/reactnet
             grad_input[mask2] = 2 - 2 * grad_input[mask2]
             grad_input[mask3] = 0
         return grad_input
-
-
-class BinarizationEval(nn.Module):
-    def __init__(self):
-        super(BinarizationEval, self).__init__()
-    
-    def forward(self, x):
-        output = torch.ones_like(input)
-        output[input < 0] = -1
-        return output
-

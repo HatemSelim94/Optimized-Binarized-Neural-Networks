@@ -26,18 +26,22 @@ class BinConvBnHTanh(nn.Module):
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         self.tanh = nn.Tanh()
         self.htanh = nn.Hardtanh(-1, 1)
+        #self.relu = nn.ReLU()
+        self.activation = nn.ReLU()
         #self.max_pool = nn.MaxPool2d(2, padding=1)
-        self.dropout = nn.Dropout2d(inplace=True, p=dropout2d)
+        self.dropout = nn.Dropout2d(p=dropout2d)
         self.binarize = EvalBinActivation(jit)
         self.latency_table = {}
     def forward(self, x):
         x = self.binarize(x)
         x = self.conv(x)
+        #x = self.relu(x)
+        x = self.activation(x)
         x= self.dropout(x)
         #x = self.max_pool(x)
         x = self.batchnorm(x)
-        x = self.tanh(x)
-        x = self.htanh(x)
+        #x = self.tanh(x)
+        #x = self.htanh(x)
         return x
 
     def ops(self, x):
@@ -113,23 +117,26 @@ class BinTConvBnHTanh(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros',jit=False, dropout2d=0.1):
         super(BinTConvBnHTanh, self).__init__()
         #self.ops = nn.Sequential
-        self.conv = EvalBinConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode)
+        self.conv = EvalBinConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode,jit=jit)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         self.htanh = nn.Hardtanh(-1, 1)
+        self.relu = nn.ReLU()
         #self.max_pool = nn.MaxPool2d(2,padding=1)
-        self.dropout = nn.Dropout2d(inplace=True, p=dropout2d)
+        self.dropout = nn.Dropout2d(p=dropout2d)
         self.binarize = EvalBinActivation(jit)
         self.latency_table = {}
         self.tanh=nn.Tanh()
-
+        self.activation = nn.ReLU()
     def forward(self, x):
         x = self.binarize(x)
         x = self.conv(x)
+        #x = self.relu(x)
+        x = self.activation(x)
         x = self.dropout(x)
         #x = self.max_pool(x)
         x = self.batchnorm(x)
-        x = self.tanh(x)
-        x = self.htanh(x)
+        #x = self.tanh(x)
+        #x = self.htanh(x)
         return x
     
     def ops(self, x):
@@ -208,7 +215,7 @@ class ConvBnHTanhBin (nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros', jit=False):
         super(ConvBnHTanhBin, self).__init__()
         #self.ops = nn.Sequential
-        self.conv = EvalBinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation,padding_mode=padding_mode)
+        self.conv = EvalBinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation,padding_mode=padding_mode, jit=jit)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         self.htanh = nn.Hardtanh(-1, 1, True)
         self.binarize = EvalBinActivation(jit)
@@ -279,7 +286,7 @@ class TConvBnHTanhBin (nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine = True, padding_mode='zeros', jit=False):
         super(TConvBnHTanhBin, self).__init__()
         #self.ops = nn.Sequential
-        self.conv = EvalBinConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode)
+        self.conv = EvalBinConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode, jit=jit)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine )
         self.htanh = nn.Hardtanh(-1, 1, True)
         self.binarize = EvalBinActivation(jit)
@@ -351,15 +358,20 @@ class BinConvBn(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros', jit =False,dropout2d=0.1):
         super(BinConvBn, self).__init__()
         #self.ops = nn.Sequential
-        self.conv = EvalBinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode)
+        self.conv = EvalBinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode, jit=jit)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         self.binarize = EvalBinActivation(jit)
-        self.dropout = nn.Dropout2d(dropout2d,True)
+        self.relu = nn.ReLU()
+        #self.htanh = nn.Ha
+        #self.activation = nn.ReLU()
+        self.dropout = nn.Dropout2d(dropout2d)
         self.latency_table = {}
     def forward(self, x):
         x = self.binarize(x)
         x = self.conv(x)
-        x= self.dropout(x)
+        #x = self.relu(x)
+        #x = self.activation(x)
+        #x= self.dropout(x)
         x = self.batchnorm(x)
         return x
 
@@ -492,6 +504,43 @@ class ConvBn(nn.Module):
         #    output = self(x)
         #return l, output
         return l
+
+    def plot_activation(self, x, path=None):
+        if path is None:
+            return self(x)
+        else:
+
+            raise NotImplementedError
+
+    def plot_weights(self, x, path=None):
+        with torch.no_grad():
+            if path is None:
+                return self(x)
+            else:
+                plot_weight(self.conv.weight)
+
+    def get_config(self):
+        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size, 'stride':self.conv.stride, 'padding':self.conv.padding, 'dilation':self.conv.dilation, 'affine':self.batchnorm.affine, 'padding_mode':self.conv.padding_mode, 'jit':self.conv.jit}
+    
+    @classmethod
+    def model(cls, config):
+        return cls(**config)
+
+
+class BinConv(nn.Module):
+    '''
+    bin -> conv 
+    '''
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros', jit=False):
+        super(BinConv, self).__init__()
+        #self.ops = nn.Sequential
+        self.binarize = EvalBinActivation(jit)
+        self.conv = EvalBinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode, jit=jit)
+        self.latency_table = {}
+    def forward(self, x):
+        x = self.binarize(x)
+        x = self.conv(x)
+        return x
 
     def plot_activation(self, x, path=None):
         if path is None:
