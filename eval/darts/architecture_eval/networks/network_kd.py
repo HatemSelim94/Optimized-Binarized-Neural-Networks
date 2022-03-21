@@ -23,14 +23,16 @@ class Network_kd(nn.Module):
         self.unique_cells = list(set([i  for i in self.cells_sequence if i in['u','r','n']]))
         self.unique_cells_len = len(self.unique_cells)
         self.initial_channels = args.stem_channels
-        self.cells = nn.ModuleList()
-        self.fp_cells = nn.ModuleList()
         self.genotype_path = args.genotype_path
         self.genotypes = self.load_genotype(os.path.join(self.genotype_path, args.search_exp_name))
         self.first_layer = Stem(out_channels=self.initial_channels)
         self.jit = args.jit
         self.dropout2d = args.dropout2d_prob
         self.padding_mode=args.padding_mode
+
+        # cells
+        self.cells = nn.ModuleList()
+        self.fp_cells = nn.ModuleList()
         c_prev_prev = self.initial_channels
         c_prev = self.initial_channels
         c = self.initial_channels
@@ -42,7 +44,7 @@ class Network_kd(nn.Module):
             if cell_type == 'r':
                 c = c_prev*2
             elif cell_type == 'u':
-                c = c_prev//8
+                c = c_prev//14
             elif cell_type == 'n':
                 c = c_prev
             else:
@@ -65,7 +67,7 @@ class Network_kd(nn.Module):
             if cell_type == 'r':
                 c = c_prev*2
             elif cell_type == 'u':
-                c = c_prev//8
+                c = c_prev//14
             elif cell_type == 'n':
                 c = c_prev
             else:
@@ -86,6 +88,7 @@ class Network_kd(nn.Module):
         self.last_layer = LastLayer(c_prev)
         self.fp_last_layer = LastLayer(c_prev)
         self.kd_criterion = nn.KLDivLoss()
+
     def forward(self, x):
         kd_loss = []
         t_s0=t_s1=t_skip_input=s0 = s1=skip_input= self.first_layer(x)
@@ -98,13 +101,7 @@ class Network_kd(nn.Module):
         x = self.last_layer(s1)
         t_x = self.last_layer(t_s1)
         return x, t_x, kd_loss
-    '''
-    def forward_latency(self, x):
-        output = 0
-        for cell in self.cells:
-            output += cell(x)
-        return output
-    '''
+
     def load_genotype(self, dir=None):
         indices = {}
         genotype_folder_generic = 'darts_relaxed_cell_modified_'

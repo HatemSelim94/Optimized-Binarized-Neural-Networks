@@ -127,7 +127,7 @@ def ops_counter(net, dummy_input_shape, device='cuda'):
                 handles.append(mod.register_forward_hook(identity_ops_forward_hook))
             elif isinstance(mod, nn.BatchNorm2d):
                 handles.append(mod.register_forward_hook(bn_ops_forward_hook))
-            elif isinstance(mod, nn.Hardtanh):
+            elif isinstance(mod, nn.Hardtanh) or isinstance(mod, nn.ReLU):
                 handles.append(mod.register_forward_hook(tanh_ops_forward_hook))
             elif isinstance(mod, Cat) or isinstance(mod, EvalCat):
                 handles.append(mod.register_forward_hook(cat_ops_forward_hook))

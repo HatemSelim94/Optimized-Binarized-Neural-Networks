@@ -60,7 +60,7 @@ def set_seeds(seed=4):
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False # set to True to increase the computation speed
-    #torch.use_deterministic_algorithms(True)
+    torch.use_deterministic_algorithms(True)
     torch.manual_seed(seed)
     np.random.seed(seed)
     random.seed(seed)
@@ -126,20 +126,12 @@ def train(train_queue, model, criterion, optimizer, num_of_classes=3,device='cud
   for step, (imgs, trgts, _) in enumerate(train_queue):
     imgs = imgs.to(device)
     trgts = trgts.to(device, non_blocking = True)
-    #target = Variable(target, requires_grad=False).cuda(async=True)
-
-    # get a random minibatch from the search queue with replacement
-    #input_search = Variable(input_search, requires_grad=False).cuda()
-    #target_search = Variable(target_search, requires_grad=False).cuda(async=True)
-    
-    # step 1 in the algorithm (DARTS paper) 
-    # step 2 in the algorithm (DARTS paper)
     optimizer.zero_grad()
     outputs = model(imgs)
+    torch.use_deterministic_algorithms(False)
     loss = criterion(outputs, trgts)
     loss.backward()
-    #nn.utils.clip_grad_value_([p for p in model.parameters() if hasattr(p, 'bin')], 1.)
-    #nn.utils.clip_grad_norm(model.parameters(), args.grad_clip)
+    torch.use_deterministic_algorithms(True)
     optimizer.step() # [-1, 1] (conv)
     train_loss += (loss.item()*imgs.shape[0])
     with torch.no_grad():
@@ -156,14 +148,15 @@ def infer(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
   metric = SegMetrics(num_of_classes)
   model.eval()
   val_loss = 0
-
   with torch.no_grad():
     for i, (imgs, trgts, _ )in enumerate(valid_queue):
       imgs = imgs.to(device)
       trgts = trgts.to(device)
 
       outputs = model(imgs)
+      torch.use_deterministic_algorithms(False)
       loss = criterion(outputs, trgts)
+      torch.use_deterministic_algorithms(True)
       outputs = torch.softmax(outputs, dim=1)
       predicted = torch.argmax(outputs, dim=1)
       val_loss += (loss.item() * imgs.shape[0])

@@ -8,7 +8,7 @@ from operator import itemgetter
 
 
 class EvalEdge(nn.Module):
-    def __init__(self, C, stride, ops_idx, cell_type, affine, binary=True, padding_mode='zeros',jit=False,dropout2d=0.1,binarizatoin=1):
+    def __init__(self, C, stride, ops_idx, cell_type, affine, binary=True, padding_mode='zeros',jit=False,dropout2d=0.1,binarization=1, activation='htanh'):
         super(EvalEdge, self).__init__()
         ops_constructor = OperationsConstructor if binary else FpOperationsConstructor
         self.ops = nn.ModuleList()
@@ -17,7 +17,7 @@ class EvalEdge(nn.Module):
         operations = ops_constructor.get_ops(cell_type)
         for i, primitive in enumerate(primitives):
             if i in ops_idx:
-                self.ops.append(operations[primitive](C=C, stride=stride, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarizatoin=binarizatoin))
+                self.ops.append(operations[primitive](C=C, stride=stride, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization, activation=activation))
                 self.ops[-1].edge_layer=True
                 #print(self.ops[-1])
         self.C = C

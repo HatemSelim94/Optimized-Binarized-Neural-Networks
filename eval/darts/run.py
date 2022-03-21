@@ -7,7 +7,7 @@ from torch.utils.data import Subset
 import argparse
 import os
 
-from architecture_eval import Network, NetworkASPP
+from architecture_eval import Network
 from processing import Transformer, DataSets
 from processing.datasets import CityScapes, KittiDataset
 from utilities import train, infer, set_seeds, Clipper, DataPlotter, Tracker, model_info, clean_dir, prepare_ops_metrics, jit_save, onnx_save
@@ -47,6 +47,12 @@ parser.add_argument('--padding_mode', type=str, default='zeros')
 parser.add_argument('--dropout2d_prob', type=float, default=0.5)
 parser.add_argument('--network_type', type=str, default='cells')
 parser.add_argument('--binarization', type=int, default=1)
+parser.add_argument('--first_layer_activation', type=str, default='htanh')
+parser.add_argument('--activation', type=str, default='relu')
+parser.add_argument('--use_skip', type=int, default=1)
+parser.add_argument('--onnx', type=int, default=0)
+parser.add_argument('--generate_onnx', type=int, default=0)
+parser.add_argument('--generate_jit', type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -54,14 +60,14 @@ torch.cuda.empty_cache()
 
 
 def main():
+    set_seeds(args.seed)
     clean_dir(args)
     if not torch.cuda.is_available():
         sys.exit(1)
-    print(args.binary)
     #classes_weights = KittiDataset.loss_weights_3 if args.num_of_classes ==3 else KittiDataset.loss_weights_8
     criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, label_smoothing=0.2)
     criterion = criterion.to(args.device)  
-    net = Network(args).to(args.device) if args.network_type == 'cells' else NetworkASPP(args).to(args.device)
+    net = Network(args).to(args.device) 
     net._set_criterion(criterion)
     input_shape = (1, 3, args.image_size, args.image_size)
     model_info(net, input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
@@ -81,7 +87,6 @@ def main():
                     val_dataset, 
                     batch_size= args.batch_size, pin_memory = True)
     
-    set_seeds(args.seed)
     num_of_classes = args.num_of_classes
     fp_params = [p for p in net.parameters() if not hasattr(p,'bin')]
     bin_params = [p for p in net.parameters() if hasattr(p,'bin')]
@@ -104,11 +109,14 @@ def main():
         data.plot(mode='all', save=True, seaborn=False)
         data.save_as_json()
     tracker.end()
-    network = Network if args.network_type == 'cells' else NetworkASPP 
-    args.onnx = 1
-    onnx_save(network(args).to(args.device).eval(), input_shape,os.path.join(args.experiment_path, args.experiment_name))
-    args.jit= 1
-    jit_save(network(args).to(args.device).eval(),input_shape,os.path.join(args.experiment_path, args.experiment_name))
+    if args.generate_onnx:
+        args.onnx = 1
+        input_shape = (1, 3, 376, 672)
+        onnx_save(Network(args).to(args.device).eval(), input_shape,os.path.join(args.experiment_path, args.experiment_name))
+    if args.generate_jit:
+        args.jit= 1
+        input_shape = (1, 3, 376, 672)
+        jit_save(Network(args).to(args.device).eval(),input_shape,os.path.join(args.experiment_path, args.experiment_name))
   
 if __name__ == '__main__':
     main()
