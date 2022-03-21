@@ -39,7 +39,25 @@ class NCell(nn.Module):
             states.append(s)
         states.append(skip_input)
         return self.cat(states[-(self.node_num+1):]), skip_input # channels number is multiplier "4" * C "C_curr"
-        
+    
+    def binarize_weight(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_weight'):
+                    setattr(mod,'binarized_weight',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+    
+    def binarize_input(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_input'):
+                    setattr(mod,'binarized_input',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+
 
 class RCell(nn.Module):
     def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype, skip_channels=64,edges_num=2, node_num=4,binary=True, affine=True, padding_mode='zeros',jit=False,dropout2d=0.1, binarization=1,activation='htanh'):
@@ -80,6 +98,24 @@ class RCell(nn.Module):
         #print(prp.shape)
         states.append(prp)
         return self.cat(states[-(self.node_num+1):]), prp # channels number is multiplier "4" * C "C_curr"
+    
+    def binarize_weight(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_weight'):
+                    setattr(mod,'binarized_weight',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+    
+    def binarize_input(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_input'):
+                    setattr(mod,'binarized_input',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
 
 
 class UCell(nn.Module):
@@ -118,6 +154,24 @@ class UCell(nn.Module):
         states.append(prp)
         #states.append(input1)
         return self.cat(states[-(self.node_num+1):]), prp # channels number is multiplier "4" * C "C_curr"
+    
+    def binarize_weight(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_weight'):
+                    setattr(mod,'binarized_weight',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+    
+    def binarize_input(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_input'):
+                    setattr(mod,'binarized_input',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
 
 ###################################################################
 # no skip
@@ -151,7 +205,25 @@ class NCellNSkip(nn.Module):
             offset += 2
             states.append(s)
         return self.cat(states[-(self.node_num):])# channels number is multiplier "4" * C "C_curr"
-        
+    
+    def binarize_weight(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_weight'):
+                    setattr(mod,'binarized_weight',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+    
+    def binarize_input(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_input'):
+                    setattr(mod,'binarized_input',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+
 
 class RCellNSkip(nn.Module):
     def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype, skip_channels,edges_num=2, node_num=4,binary=True, affine=True, padding_mode='zeros',jit=False,dropout2d=0.1, binarization=1,activation='htanh'):
@@ -186,6 +258,24 @@ class RCellNSkip(nn.Module):
             offset += 2
             states.append(s)
         return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
+    
+    def binarize_weight(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_weight'):
+                    setattr(mod,'binarized_weight',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+    
+    def binarize_input(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_input'):
+                    setattr(mod,'binarized_input',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
 
 
 class UCellNSkip(nn.Module):
@@ -218,6 +308,24 @@ class UCellNSkip(nn.Module):
             offset += 2
             states.append(s)
         return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
+    
+    def binarize_weight(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_weight'):
+                    setattr(mod,'binarized_weight',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+    
+    def binarize_input(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_input'):
+                    setattr(mod,'binarized_input',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
 ###################################################################
 class LastLayer(nn.Module):
     def __init__(self, in_channels, classes_num=3, binary=True, affine=True, kernel_size=3, jit = False, binarization=1):
@@ -234,6 +342,24 @@ class LastLayer(nn.Module):
     def forward(self, x):
         x = self.layers(x)
         return x
+    
+    def binarize_weight(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_weight'):
+                    setattr(mod,'binarized_weight',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+    
+    def binarize_input(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_input'):
+                    setattr(mod,'binarized_input',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
 
 
 class Pooling(nn.Module):
@@ -268,7 +394,25 @@ class BinASPP(nn.Module):
         for mod in self.layers:
             output.append(mod(x))
         s = torch.sum(torch.stack(output, dim=1), dim=1)
-        return s 
+        return s
+
+    def binarize_weight(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_weight'):
+                    setattr(mod,'binarized_weight',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+    
+    def binarize_input(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_input'):
+                    setattr(mod,'binarized_input',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state) 
 
 
 if __name__ == '__main__':

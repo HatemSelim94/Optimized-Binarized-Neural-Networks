@@ -34,6 +34,7 @@ class Network(nn.Module):
         self.activation = args.activation
         self.first_layer_activation = args.first_layer_activation
         self.use_skip = args.use_skip
+        self.kd = args.use_kd
 
         # first layer (fp)
         self.first_layer = Stem(out_channels=self.initial_channels, affine=self.affine, activation=self.first_layer_activation)
@@ -83,19 +84,37 @@ class Network(nn.Module):
     def forward(self, x):
         if self.jit or self.onnx:
             x = self.transforms(x)
-        if self.use_skip:
-            s0 = s1=skip_input= self.first_layer(x)
-            for cell in self.cells:
-                s0, (s1, skip_input) = s1, cell(s0, s1, skip_input)
+        if self.kd:
+            intermediate_outputs = []
+            if self.use_skip:
+                s0 = s1=skip_input= self.first_layer(x)
+                for cell in self.cells:
+                    s0, (s1, skip_input) = s1, cell(s0, s1, skip_input)
+                    intermediate_outputs.append(s1.clone()) # clone -> inplace ops protection
+            else:
+                s0 = s1=self.first_layer(x)
+                for cell in self.cells:
+                    s0, s1 = s1, cell(s0, s1)
+                    intermediate_outputs.append(s1.clone()) # clone -> inplace ops protection
+            if self.network_type == 'aspp':
+                x = self.binaspp(x)
+            x = self.upsample(s1)
+            x = self.last_layer(x)
+            return x, intermediate_outputs
         else:
-            s0 = s1=self.first_layer(x)
-            for cell in self.cells:
-                s0, s1 = s1, cell(s0, s1)
-        if self.network_type == 'aspp':
-            x = self.binaspp(x)
-        x = self.upsample(s1)
-        x = self.last_layer(x)
-        return x
+            if self.use_skip:
+                s0 = s1=skip_input= self.first_layer(x)
+                for cell in self.cells:
+                    s0, (s1, skip_input) = s1, cell(s0, s1, skip_input)
+            else:
+                s0 = s1=self.first_layer(x)
+                for cell in self.cells:
+                    s0, s1 = s1, cell(s0, s1)
+            if self.network_type == 'aspp':
+                x = self.binaspp(x)
+            x = self.upsample(s1)
+            x = self.last_layer(x)
+            return x
 
     def load_genotype(self, dir=None):
         indices = {}

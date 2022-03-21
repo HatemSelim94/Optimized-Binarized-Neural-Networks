@@ -53,6 +53,7 @@ parser.add_argument('--use_skip', type=int, default=1)
 parser.add_argument('--onnx', type=int, default=0)
 parser.add_argument('--generate_onnx', type=int, default=0)
 parser.add_argument('--generate_jit', type=int, default=0)
+parser.add_argument('--use_kd', type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -112,11 +113,15 @@ def main():
     if args.generate_onnx:
         args.onnx = 1
         input_shape = (1, 3, 376, 672)
-        onnx_save(Network(args).to(args.device).eval(), input_shape,os.path.join(args.experiment_path, args.experiment_name))
+        new_net=Network(args).to(args.device)
+        new_net.load_state_dict(net.state_dict())
+        onnx_save(new_net.eval(), input_shape,os.path.join(args.experiment_path, args.experiment_name))
     if args.generate_jit:
         args.jit= 1
         input_shape = (1, 3, 376, 672)
-        jit_save(Network(args).to(args.device).eval(),input_shape,os.path.join(args.experiment_path, args.experiment_name))
+        new_net=Network(args).to(args.device)
+        new_net.load_state_dict(net.state_dict())
+        jit_save(new_net.eval(),input_shape,os.path.join(args.experiment_path, args.experiment_name))
   
 if __name__ == '__main__':
     main()
