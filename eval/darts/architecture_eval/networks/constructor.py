@@ -1,13 +1,16 @@
-from .cell import NCell, RCell, UCell, NCellNSkip, RCellNSkip, UCellNSkip
+from .cell import NCell, RCell, UCell, NCellNSkip, RCellNSkip, UCellNSkip, RCellNSkipOld,UCellNSkipOld, NCellNSkipOld
 
 
 class NetConstructor:
     skip_cell_types = {'n':NCell,'r':RCell,'u':UCell}
     no_skip_cell_types = {'n':NCellNSkip,'r':RCellNSkip,'u':UCellNSkip}
+    no_skip_old_cell_types = {'n':NCellNSkipOld,'r':RCellNSkipOld,'u':UCellNSkipOld}
     def __init__(self):
         pass
     @classmethod
-    def construct(cls, cell_type, args, use_skip):
+    def construct(cls, cell_type, args, use_skip,old_ver=0):
+        if old_ver:
+            return cls.no_skip_old_cell_types[cell_type](*args)
         if use_skip:
             return cls.skip_cell_types[cell_type](*args)
         else:

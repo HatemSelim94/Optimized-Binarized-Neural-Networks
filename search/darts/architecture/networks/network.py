@@ -33,8 +33,12 @@ class Network(nn.Module):
         self.first_layer_activation = args.first_layer_activation
         self.use_skip = args.use_skip
         self.kd = args.use_kd
-        self.cells = nn.ModuleList()
-        self.alphas = [torch.empty((self.nodes_num*self.edge_num ,self.ops_num), requires_grad=True, device=args.device) for _ in range(self.unique_cells_len)]
+        self.use_old_ver = args.use_old_ver
+        if self.use_old_ver:
+            self.total_edge_num = sum([self.edge_num+i for i in range(self.nodes_num)])
+            self.alphas = [torch.empty((self.total_edge_num ,self.ops_num), requires_grad=True, device=args.device) for _ in range(self.unique_cells_len)]
+        else:
+            self.alphas = [torch.empty((self.nodes_num*self.edge_num ,self.ops_num), requires_grad=True, device=args.device) for _ in range(self.unique_cells_len)]
         for i in range(self.unique_cells_len):
             nn.init.constant_(self.alphas[i], 1/self.ops_num)
                 # first layer (fp)
@@ -61,7 +65,7 @@ class Network(nn.Module):
                 cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[idx[cell_type]],1,2,self.ops_num, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit,self.dropout2d, self.binarization, self.activation)
             else:
                 cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.alphas[idx[cell_type]], 2, self.ops_num,self.nodes_num,self.binary, self.affine, self.padding_mode,self.jit,self.dropout2d, self.binarization, self.activation)
-            self.cells.append(NetConstructor.construct(cell_type, cell_specs, self.use_skip))
+            self.cells.append(NetConstructor.construct(cell_type, cell_specs, self.use_skip, self.use_old_ver))
             prev_cell = cell_type
             c_prev_prev = c_prev
             if self.use_skip:
@@ -115,18 +119,9 @@ class Network(nn.Module):
             x = self.upsample(s1)
             x = self.last_layer(x)
             return x
-    '''
-    def forward_latency(self, x):
-        output = 0
-        for cell in self.cells:
-            output += cell(x)
-        return output
-    '''
-    def load_genotype(self, dir=None):
-        self.idx = load_genotype(dir)
 
     def save_genotype(self, dir=None, epoch=0, nodes=4):
-        save_genotype(self.model.alphas,dir, epoch,nodes=nodes)
+        save_genotype(self.model.alphas,dir, epoch,nodes=nodes,types=self.unique_cells,use_old_ver=self.use_old_ver)
     
     def _loss(self, inputs, targets):
         predictions = self(inputs)

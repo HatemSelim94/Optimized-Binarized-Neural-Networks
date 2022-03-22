@@ -56,10 +56,11 @@ parser.add_argument('--generate_jit', type=int, default=0)
 parser.add_argument('--use_kd', type=int, default=0)
 parser.add_argument('--step_two', type=int, default=30)
 parser.add_argument('--seaborn_style', type=int, default=0)
+parser.add_argument('--use_old_ver', type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
-
+assert(args.use_old_ver != args.use_skip)
 
 
 def main():

@@ -327,6 +327,157 @@ class UCellNSkip(nn.Module):
                     recurs(mod, state)
         recurs(self, state)
 ###################################################################
+# old ver Darts
+class NCellNSkipOld(nn.Module):
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1,activation='htanh') :
+        super(NCellNSkipOld, self).__init__()
+        self.edges_num = edges_num
+        self.node_num = node_num
+        prprocess = Preprocess if binary else FpPreprocess
+        self.preprocess0 = prprocess.operations(prev_cell_type,0,C_prev_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d, binarization=binarization,activation=activation)
+        self.preprocess1 = prprocess.operations(prev_cell_type,1,C_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d, binarization=binarization,activation=activation)
+        self.edges = nn.ModuleList()
+        self.binary = binary
+        i=0
+        self.genotype_states_idx = genotype['states']
+        for n in range(node_num):
+            for e in range(edges_num):
+                stride = 2 if n+e <= 1 else 1
+                self.edges.append(EvalEdge(C, stride, [genotype['ops'][i]], 'n', affine, binary,padding_mode=padding_mode,jit=jit, binarization=binarization,activation=activation))
+                i+=1
+        self.sum = EvalSum()
+        self.cat = EvalCat()
+
+    def forward(self, input0, input1):
+        s0 = self.preprocess0(input0)
+        s1 = self.preprocess1(input1)
+        states = [s0, s1]
+        offset = 0
+        for n in range(self.node_num):
+            s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            offset += 2
+            states.append(s)
+        return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
+    
+    def binarize_weight(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_weight'):
+                    setattr(mod,'binarized_weight',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+    
+    def binarize_input(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_input'):
+                    setattr(mod,'binarized_input',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+
+
+class RCellNSkipOld(nn.Module):
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,skip_channels,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1,activation='htanh') :
+        super(RCellNSkipOld, self).__init__()
+        self.edges_num = edges_num
+        self.node_num = node_num
+        prprocess = Preprocess if binary else FpPreprocess
+        self.preprocess0 = prprocess.operations(prev_cell_type,0,C_prev_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d, binarization=binarization,activation=activation)
+        self.preprocess1 = prprocess.operations(prev_cell_type,1,C_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d, binarization=binarization,activation=activation)
+        self.edges = nn.ModuleList()
+        self.binary = binary
+        i=0
+        self.genotype_states_idx = genotype['states']
+        for n in range(node_num):
+            for e in range(edges_num):
+                stride = 2 if self.genotype_states_idx[n][e] < 2 else 1
+                self.edges.append(EvalEdge(C, stride, [genotype['ops'][i]], 'r', affine, binary,padding_mode=padding_mode,jit=jit, binarization=binarization,activation=activation))
+                i+=1
+        self.sum = EvalSum()
+        self.cat = EvalCat()
+
+    def forward(self, input0, input1):
+        s0 = self.preprocess0(input0)
+        s1 = self.preprocess1(input1)
+        states = [s0, s1]
+        offset = 0
+        for n in range(self.node_num):
+            s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            offset += 2
+            states.append(s)
+        return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
+    
+    def binarize_weight(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_weight'):
+                    setattr(mod,'binarized_weight',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+    
+    def binarize_input(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_input'):
+                    setattr(mod,'binarized_input',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+
+
+class UCellNSkipOld(nn.Module):
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1,activation='htanh') :
+        super(UCellNSkipOld, self).__init__()
+        self.edges_num = edges_num
+        self.node_num = node_num
+        prprocess = Preprocess if binary else FpPreprocess
+        self.preprocess0 = prprocess.operations(prev_cell_type,0,C_prev_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d, binarization=binarization,activation=activation)
+        self.preprocess1 = prprocess.operations(prev_cell_type,1,C_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d, binarization=binarization,activation=activation)
+        self.edges = nn.ModuleList()
+        self.binary = binary
+        i=0
+        self.genotype_states_idx = genotype['states']
+        for n in range(node_num):
+            for e in range(edges_num):
+                stride = 2 if self.genotype_states_idx[n][e] < 2 else 1
+                self.edges.append(EvalEdge(C, stride, [genotype['ops'][i]], 'u', affine, binary,padding_mode=padding_mode,jit=jit, binarization=binarization,activation=activation))
+                i+=1
+        self.sum = EvalSum()
+        self.cat = EvalCat()
+
+    def forward(self, input0, input1):
+        s0 = self.preprocess0(input0)
+        s1 = self.preprocess1(input1)
+        states = [s0, s1]
+        offset = 0
+        for n in range(self.node_num):
+            s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            offset += 2
+            states.append(s)
+        return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
+    
+    def binarize_weight(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_weight'):
+                    setattr(mod,'binarized_weight',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+    
+    def binarize_input(self, state=True):
+        def recurs(net,state):
+            for mod in net.children():
+                if hasattr(mod,'binarized_input'):
+                    setattr(mod,'binarized_input',state)
+                else:
+                    recurs(mod, state)
+        recurs(self, state)
+
+###################################################################
 class LastLayer(nn.Module):
     def __init__(self, in_channels, classes_num=3, binary=True, affine=True, kernel_size=3, jit = False, binarization=1):
         super(LastLayer, self).__init__() 

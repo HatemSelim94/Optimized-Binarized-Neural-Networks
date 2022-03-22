@@ -27,8 +27,8 @@ class Architecture:
         torch.use_deterministic_algorithms(True)
         #return loss.item()
     
-    def save_genotype(self, dir=None, epoch=0, nodes=4):
-        save_genotype(self.model.alphas, dir, epoch, nodes, self.model.unique_cells)
+    def save_genotype(self, dir=None, epoch=0, nodes=4, use_old_ver=1):
+        save_genotype(self.model.alphas, dir=dir, epoch=epoch, nodes=nodes, types=self.model.unique_cells,use_old_ver=use_old_ver)
     
     def get_losses(self, binary=True):
         ops_loss = 0

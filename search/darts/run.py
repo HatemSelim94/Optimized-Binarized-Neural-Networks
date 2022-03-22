@@ -62,6 +62,7 @@ parser.add_argument('--binarization', type=int, default=1)
 parser.add_argument('--first_layer_activation', type=str, default='htanh')
 parser.add_argument('--activation', type=str, default='relu')
 parser.add_argument('--use_skip', type=int, default=1)
+parser.add_argument('--use_old_ver', type=int, default=1)
 parser.add_argument('--onnx', type=int, default=0)
 parser.add_argument('--generate_onnx', type=int, default=0)
 parser.add_argument('--generate_jit', type=int, default=0)
@@ -121,7 +122,7 @@ def main():
         data.store(epoch, 0, loss, 0, miou)
         data.plot(mode='val', save=True, seaborn=args.seaborn_style)
         if epoch > args.arch_start-1:
-            arch.save_genotype(os.path.join(args.experiment_path, args.experiment_name), epoch, nodes=args.nodes_num)
+            arch.save_genotype(os.path.join(args.experiment_path, args.experiment_name), epoch, nodes=args.nodes_num, use_old_ver=args.use_old_ver)
     data.save_as_json()
     tracker.end()
   

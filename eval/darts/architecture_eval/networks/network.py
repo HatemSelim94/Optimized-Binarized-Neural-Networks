@@ -24,6 +24,7 @@ class Network(nn.Module):
         self.unique_cells_len = len(self.unique_cells)
         self.initial_channels = args.stem_channels
         self.genotype_path = args.genotype_path
+        self.use_old_ver = args.use_old_ver
         self.genotypes = self.load_genotype(os.path.join(self.genotype_path, args.search_exp_name))
         self.jit = args.jit
         self.onnx = args.onnx
@@ -35,6 +36,7 @@ class Network(nn.Module):
         self.first_layer_activation = args.first_layer_activation
         self.use_skip = args.use_skip
         self.kd = args.use_kd
+        
 
         # first layer (fp)
         self.first_layer = Stem(out_channels=self.initial_channels, affine=self.affine, activation=self.first_layer_activation)
@@ -61,7 +63,7 @@ class Network(nn.Module):
                 cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type],1,2, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit,self.dropout2d, self.binarization, self.activation)
             else:
                 cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type], 2, self.nodes_num,self.binary, self.affine, self.padding_mode,self.jit,self.dropout2d, self.binarization, self.activation)
-            self.cells.append(NetConstructor.construct(cell_type, cell_specs, self.use_skip))
+            self.cells.append(NetConstructor.construct(cell_type, cell_specs, self.use_skip, old_ver=self.use_old_ver))
             prev_cell = cell_type
             c_prev_prev = c_prev
             if self.use_skip:
@@ -118,7 +120,11 @@ class Network(nn.Module):
 
     def load_genotype(self, dir=None):
         indices = {}
-        genotype_folder_generic = 'darts_relaxed_cell_modified_'
+        if self.use_old_ver:
+            genotype_folder_generic = 'darts_relaxed_cell_'
+        else:    
+            genotype_folder_generic = 'darts_relaxed_cell_modified_'
+
         for i, cell_type in enumerate(self.unique_cells):
             genotype_folder = genotype_folder_generic+cell_type
             gentyoes_path = os.path.join(dir, genotype_folder)
