@@ -24,6 +24,7 @@ class Architecture:
         ops_loss, params_loss, latency_loss = self.get_losses()
         total_loss = self.beta*ops_loss**2 + self.gamma* params_loss**2 + self.delta* latency_loss**2 + loss
         total_loss.backward()
+        torch.use_deterministic_algorithms(True)
         #return loss.item()
     
     def save_genotype(self, dir=None, epoch=0, nodes=4):

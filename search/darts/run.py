@@ -27,7 +27,7 @@ parser.add_argument('--arch_optim_beta0', type=float, default=0.9)
 parser.add_argument('--arch_optim_beta1', type=float, default=0.999)
 parser.add_argument('--arch_optim_eps', type=float, default=1e-08)
 parser.add_argument('--arch_optim_weight_decay', type=float, default=5e-4)
-parser.add_argument('--arch_optim_amsgrad', type=bool, default=False)
+parser.add_argument('--arch_optim_amsgrad', type=int, default=0)
 parser.add_argument('--epochs', type=int, default=40)
 parser.add_argument('--network_optim', type=str, default='adamax')
 parser.add_argument('--network_optim_bin_lr', type=float, default=1e-3)
@@ -46,15 +46,28 @@ parser.add_argument('--experiment_name', type=str, default='exp1')
 parser.add_argument('--device', type=str, default='cuda')
 parser.add_argument('--seed', type=int, default=4)
 parser.add_argument('--arch_start', type=int, default=20)
-parser.add_argument('--both', type=bool, default=False)
-parser.add_argument('--affine', type=bool, default=False)
-parser.add_argument('--binary', type=bool, default=True)
+parser.add_argument('--both', type=int, default=0)
+parser.add_argument('--affine', type=int, default=0)
+parser.add_argument('--binary', type=int, default=1)
 parser.add_argument('--ops_obj_beta', type=float, default=0.0)
 parser.add_argument('--params_obj_gamma', type=float, default=0.0)
 parser.add_argument('--latency_obj_delta', type=float, default=0.0)
-parser.add_argument('--last_layer_binary', type=bool,default=True)
-parser.add_argument('--last_layer_kernel_size', type=int, default=True)
-
+parser.add_argument('--last_layer_binary', type=int,default=1)
+parser.add_argument('--last_layer_kernel_size', type=int, default=3)
+parser.add_argument('--jit', type=int, default=0)
+parser.add_argument('--padding_mode', type=str, default='zeros')
+parser.add_argument('--dropout2d_prob', type=float, default=0.5)
+parser.add_argument('--network_type', type=str, default='cells')
+parser.add_argument('--binarization', type=int, default=1)
+parser.add_argument('--first_layer_activation', type=str, default='htanh')
+parser.add_argument('--activation', type=str, default='relu')
+parser.add_argument('--use_skip', type=int, default=1)
+parser.add_argument('--onnx', type=int, default=0)
+parser.add_argument('--generate_onnx', type=int, default=0)
+parser.add_argument('--generate_jit', type=int, default=0)
+parser.add_argument('--use_kd', type=int, default=0)
+parser.add_argument('--step_two', type=int, default=30)
+parser.add_argument('--seaborn_style', type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -62,6 +75,7 @@ torch.cuda.empty_cache()
 
 
 def main():
+    set_seeds(args.seed)
     clean_dir(args)
     if not torch.cuda.is_available():
         sys.exit(1)
@@ -89,11 +103,11 @@ def main():
                     val_dataset, 
                     batch_size= args.batch_size, pin_memory = True)
     
-    set_seeds(args.seed)  
+      
     fp_params = [p for p in net.parameters() if not hasattr(p,'bin')]
     bin_params = [p for p in net.parameters() if hasattr(p,'bin')]
     optim_args = [[{'params':fp_params, 'weight_decay':args.network_optim_fp_weight_decay,'lr':args.network_optim_fp_lr},{'params':bin_params, 'weight_decay':0,'lr':args.network_optim_bin_lr, 'betas':[args.network_optim_bin_betas, args.network_optim_bin_betas ]}]]
-    optimizer = Clipper.get_clipped_optim('Adamax', optim_args)
+    optimizer = Clipper.get_clipped_optim(args.network_optim, optim_args)
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step:((step/args.epochs))**2)
     data = DataPlotter(os.path.join(args.experiment_path, args.experiment_name))
     tracker = Tracker(args.epochs)
@@ -105,7 +119,7 @@ def main():
         miou, loss= infer(val_loader, net, criterion, num_of_classes=args.num_of_classes)
         tracker.print(0,0, loss, miou, epoch=epoch, mode='val')
         data.store(epoch, 0, loss, 0, miou)
-        data.plot(mode='val', save=True, seaborn=False)
+        data.plot(mode='val', save=True, seaborn=args.seaborn_style)
         if epoch > args.arch_start-1:
             arch.save_genotype(os.path.join(args.experiment_path, args.experiment_name), epoch, nodes=args.nodes_num)
     data.save_as_json()

@@ -85,8 +85,10 @@ def train_arch(model_dataloader, arch_dataloader, arch, criterion, optimizer, ep
             trgts = trgts.to(device, non_blocking = True)
             optimizer.zero_grad()
             outputs = arch.model(imgs)
+            torch.use_deterministic_algorithms(False)
             loss = criterion(outputs, trgts) # mean
             loss.backward()
+            torch.use_deterministic_algorithms(True)
             optimizer.step() # [-1, 1] (conv)
             #train_loss += (loss.item()*imgs.shape[0]) # loss per image
             #predictions = torch.argmax(torch.softmax(outputs, dim=1), dim=1)
@@ -372,3 +374,16 @@ def onnx_save(model, input_shape, dir,device='cuda',opset=11):
     dummy_input = torch.randn(input_shape).to(device)
     torch.onnx.export(model, dummy_input, 
                     os.path.join(dir,'onnx_model.pt'), input_names=['input'],output_names=['output'], export_params=True,verbose=False, opset_version=opset)
+
+
+def layers_state_setter(net,input=True, weight=True):
+    def recurs(net, input,weight):
+        for child in net.children():
+            if callable(getattr(child, 'binarize_weight',None)):
+                child.binarize_weight(weight)
+            if callable(getattr(child, 'binarize_input',None)):
+                child.binarize_weight(input)
+            recurs(child,input, weight)
+    recurs(net,input, weight)
+    
+    

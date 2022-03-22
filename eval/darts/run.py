@@ -10,7 +10,7 @@ import os
 from architecture_eval import Network
 from processing import Transformer, DataSets
 from processing.datasets import CityScapes, KittiDataset
-from utilities import train, infer, set_seeds, Clipper, DataPlotter, Tracker, model_info, clean_dir, prepare_ops_metrics, jit_save, onnx_save
+from utilities import train, infer, set_seeds, Clipper, DataPlotter, Tracker, model_info, clean_dir, prepare_ops_metrics, jit_save, onnx_save, layers_state_setter
 
 parser  = argparse.ArgumentParser('DARTS')
 parser.add_argument('--data_name', type=str, default='cityscapes')
@@ -39,7 +39,7 @@ parser.add_argument('--seed', type=int, default=4)
 parser.add_argument('--affine', type=int, default=1)
 parser.add_argument('--binary', type=int, default=1)
 parser.add_argument('--last_layer_binary', type=bool,default=True)
-parser.add_argument('--last_layer_kernel_size', type=int, default=True)
+parser.add_argument('--last_layer_kernel_size', type=int, default=3)
 parser.add_argument('--genotype_path', type=str, default='search/darts/experiments/')
 parser.add_argument('--search_exp_name', type=str, default='exp1')
 parser.add_argument('--jit', type=int, default=0)
@@ -54,6 +54,8 @@ parser.add_argument('--onnx', type=int, default=0)
 parser.add_argument('--generate_onnx', type=int, default=0)
 parser.add_argument('--generate_jit', type=int, default=0)
 parser.add_argument('--use_kd', type=int, default=0)
+parser.add_argument('--step_two', type=int, default=30)
+parser.add_argument('--seaborn_style', type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -73,8 +75,10 @@ def main():
     input_shape = (1, 3, args.image_size, args.image_size)
     model_info(net, input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
     prepare_ops_metrics(net, input_shape)
-    train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'center_crop':{'size':[448,448]},'resize':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
-    val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'center_crop':{'size':[448,448]},'resize':{'size':[args.image_size,args.image_size]}})
+    #train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[448,448]},'center_crop':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
+    #val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[448,448]},'center_crop':{'size':[args.image_size,args.image_size]}})
+    train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
+    val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size,args.image_size]}})
     train_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes, transforms=train_transforms)
     val_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='val',transforms=val_transforms)
     train_idx = range(args.train_subset)
@@ -100,6 +104,8 @@ def main():
     data = DataPlotter(os.path.join(args.experiment_path, args.experiment_name))
     tracker = Tracker(args.epochs)
     tracker.start()
+    if args.step_two:
+        layers_state_setter(net, input=True, weight=False) # binarized input, fp weights
     for epoch in range(args.epochs):
         # training
         train_miou, train_loss = train(train_loader, net, criterion, optimizer, num_of_classes)
@@ -107,8 +113,12 @@ def main():
         scheduler.step()
         tracker.print(train_loss,train_miou, loss, miou, epoch=epoch)
         data.store(epoch, train_loss, loss, train_miou, miou)
-        data.plot(mode='all', save=True, seaborn=False)
+        data.plot(mode='all', save=True, seaborn=args.seaborn_style)
         data.save_as_json()
+        if args.step_two:
+            if epoch == args.step_two:
+                layers_state_setter(net, input=True, weight=True)
+
     tracker.end()
     if args.generate_onnx:
         args.onnx = 1
