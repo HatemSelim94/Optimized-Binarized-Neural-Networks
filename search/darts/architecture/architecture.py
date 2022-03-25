@@ -29,7 +29,7 @@ class Architecture:
     
     def save_genotype(self, dir=None, epoch=0, nodes=4, use_old_ver=1):
         save_genotype(self.model.alphas, dir=dir, epoch=epoch, nodes=nodes, types=self.model.unique_cells,use_old_ver=use_old_ver)
-    
+
     def get_losses(self, binary=True):
         ops_loss = 0
         params_loss = 0

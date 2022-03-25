@@ -57,6 +57,8 @@ parser.add_argument('--use_kd', type=int, default=0)
 parser.add_argument('--step_two', type=int, default=30)
 parser.add_argument('--seaborn_style', type=int, default=0)
 parser.add_argument('--use_old_ver', type=int, default=0)
+parser.add_argument('--channel_expansion_ratio_r', type= int, default=2)
+parser.add_argument('--channel_reduction_ratio_u', type=int, default=14)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -81,11 +83,21 @@ def main():
     train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
     val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size,args.image_size]}})
     train_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes, transforms=train_transforms)
-    val_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='val',transforms=val_transforms)
-    train_idx = range(args.train_subset)
-    val_idx = range(args.val_subset) 
-    train_dataset = Subset(train_dataset, [i for i in train_idx])
-    val_dataset = Subset(val_dataset, [i for i in val_idx])
+    if args.data_name == 'cityscapes':
+        val_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='val',transforms=val_transforms)
+        train_idx = range(args.train_subset)
+        val_idx = range(args.val_subset) 
+        train_dataset = Subset(train_dataset, [i for i in train_idx])
+        val_dataset = Subset(val_dataset, [i for i in val_idx])
+    elif args.data_name == 'kitti':
+        assert  args.train_subset + args.val_subset <= 200   
+        train_idx = range(args.train_subset)
+        val_idx = range(args.train_subset, min(200,args.train_subset+args.val_subset)) 
+        val_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='train',transforms=val_transforms)
+        train_idx = range(args.train_subset)
+        val_idx = range(args.val_subset) 
+        train_dataset = Subset(train_dataset, [i for i in train_idx])
+        val_dataset = Subset(val_dataset, [i for i in val_idx])
     train_loader = torch.utils.data.DataLoader(
                     train_dataset, 
                     batch_size=args.batch_size, pin_memory = True)

@@ -38,10 +38,11 @@ def value_to_string(value, unit=None, precision=2):
     return output
 
 def model_info(net, input_shape, save=False, dir=None, verbose=True):
-    gops = ops_counter(net, input_shape)
-    max_mem = max_mem_counter(net, input_shape)
-    model_size = value_to_string(params_size_counter(net, input_shape),unit='B')
-    latency_ms, fps = get_latency(net, input_shape)
+    with torch.no_grad():
+        gops = ops_counter(net, input_shape)
+        max_mem = max_mem_counter(net, input_shape)
+        model_size = value_to_string(params_size_counter(net, input_shape),unit='B')
+        latency_ms, fps = get_latency(net, input_shape)
     if verbose:
         print('\n Model Info:')
         print(f'     OPS: {gops} x10⁶')
@@ -361,9 +362,10 @@ def save_model(model, epoch,scheduler, best_val_mean_iou, experiment_path, check
     return PATH
 
 def prepare_ops_metrics(net, input_shape):
-    calculate_ops_metrics(net, input_shape)
-    calculate_ops_latency(net, input_shape)
-    calculate_min(net)
+    with torch.no_grad():
+        calculate_ops_metrics(net, input_shape)
+        calculate_ops_latency(net, input_shape)
+        calculate_min(net)
 
 def jit_save(model, input_shape, dir,device='cuda'):
     dummy_input = torch.randn(input_shape).to(device)

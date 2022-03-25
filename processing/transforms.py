@@ -153,13 +153,14 @@ class Transformer:
                     'normalize':Normalize, 'resize':Resize, 'random_crop':RandomCrop,
                     'random_resize':RandomResize, 'center_crop':CenterCrop}
         list_of_transforms = []
-        if to_tensor:
-            list_of_transforms.append(ToTensor())
         for transform, params in parameters.items():
             if transform != 'normalize':
-                list_of_transforms.insert(0, transforms[transform](**params))
-            else:
                 list_of_transforms.append(transforms[transform](**params))
+        if to_tensor:
+            list_of_transforms.append(ToTensor())
+        params =parameters.get('normalize', None)
+        if params is not None:
+            list_of_transforms.append(transforms['normalize'](**params))
         composed_transforms = Compose(list_of_transforms)
         return composed_transforms
 

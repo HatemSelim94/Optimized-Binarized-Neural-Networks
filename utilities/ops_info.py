@@ -119,7 +119,7 @@ def ops_counter(net, dummy_input_shape, device='cuda'):
                 handles.append(mod.register_forward_hook(bintconv_ops_forward_hook))
             elif isinstance(mod, Sum) or isinstance(mod, EvalSum):
                 handles.append(mod.register_forward_hook(sum_ops_forward_hook))
-            elif isinstance(mod, Bilinear) or isinstance(mod, EvalBilinear):
+            elif isinstance(mod, Bilinear) or isinstance(mod, EvalBilinear) or isinstance(mod, nn.Upsample):
                 handles.append(mod.register_forward_hook(bilinear_ops_forward_hook))
             elif isinstance(mod, nn.MaxPool2d) or isinstance(mod, nn.AvgPool2d):
                 handles.append(mod.register_forward_hook(pool_ops_forward_hook))
@@ -138,7 +138,7 @@ def ops_counter(net, dummy_input_shape, device='cuda'):
             elif isinstance(mod, BinActivation) or isinstance(mod, EvalBinActivation):
                 handles.append(mod.register_forward_hook(binarization_ops_forward_hook))
             else:
-                #print(f'Warning: {type(mod)} ops is not defined')
+                print(f'Warning: {type(mod)} ops is not defined')
                 pass
             attach_hooks(mod)
     attach_hooks(net)

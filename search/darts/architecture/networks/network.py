@@ -52,9 +52,9 @@ class Network(nn.Module):
         idx = {cell_type: i  for i, cell_type in enumerate(self.unique_cells)} 
         for i, cell_type in enumerate(self.cells_sequence): 
             if cell_type == 'r':
-                c = c_prev*2
+                c = int(c_prev*args.channel_expansion_ratio_r)
             elif cell_type == 'u':
-                c = c_prev//14
+                c = int(c_prev//args.channel_reduction_ratio_u)
             elif cell_type == 'n':
                 c = c_prev
             else:
@@ -74,7 +74,12 @@ class Network(nn.Module):
                 c_prev = self.nodes_num*c
         
         if self.network_type == 'cells':
-            scale = 2
+            scale = 2 # stem i.e. first layer
+            for cell in self.cells_sequence:
+                if cell == 'r':
+                    scale*=2
+                if cell == 'u':
+                    scale /=2
             last_layer_ch = c_prev
         elif self.network_type == 'aspp':
             scale = 4
@@ -115,8 +120,10 @@ class Network(nn.Module):
                 for cell in self.cells:
                     s0, s1 = s1, cell(s0, s1)
             if self.network_type == 'aspp':
-                x = self.binaspp(x)
-            x = self.upsample(s1)
+                x = self.binaspp(s1)
+                x = self.upsample(x)
+            else:
+                x = self.upsample(s1)
             x = self.last_layer(x)
             return x
 

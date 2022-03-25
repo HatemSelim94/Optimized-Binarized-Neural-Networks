@@ -3,7 +3,8 @@ import torch
 import torch.nn as nn
 from graphviz import Digraph
 import os
-
+import seaborn as sns 
+import matplotlib.pyplot as plt
 
 NR_PRIMITIVES = [
     'max_pool_3x3',
@@ -25,7 +26,7 @@ UP_PRIMITIVES = [
 
 
 
-def plot_cell(idx,cell_type, dir,epoch, view=False, nodes=4, use_old_ver=1):
+def plot_cell(idx,cell_type, dir,epoch,alpha, view=False, nodes=4, use_old_ver=1):
     ops = NR_PRIMITIVES if cell_type in ['n','r'] else UP_PRIMITIVES
     g = Digraph(
       format='pdf',
@@ -97,6 +98,7 @@ def plot_cell(idx,cell_type, dir,epoch, view=False, nodes=4, use_old_ver=1):
         os.makedirs(filepath)
     filename = os.path.join(filepath, f'genotype_{epoch}')
     g.render(filename,view=view)
+    plot_alpha_certainty(alpha, filename+'certainty')
 
 def save_cell_idx(cell_idx, type, dir, epoch=0,use_old_ver=1):
     if use_old_ver:
@@ -117,7 +119,15 @@ def save_cell_idx(cell_idx, type, dir, epoch=0,use_old_ver=1):
             json.dump(cell_idx.tolist(),f)
         with open(best_filename+'.json','w') as f:
             json.dump(cell_idx.tolist(),f)
-    
+
+def plot_alpha_certainty(alpha, filename, verbose=False, save=True):
+        alpha_np = alpha.detach().clone().cpu().numpy()
+        sns_object=sns.heatmap(alpha_np, annot=True, cmap='Greens')
+        sns_object.set(xlabel='Operations', ylabel='Alphas')
+        if verbose: 
+            plt.show()
+        if save:
+            plt.savefig(filename)
 
 def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u'],edge_num=2, best=1, use_old_ver=1):
     if use_old_ver:
@@ -125,6 +135,7 @@ def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u'],edge_num=2, 
             # output (8, 8) idx 
             genotypes = []
             for alpha in alphas:
+                plot_alpha_certainty(alpha, os.path.join(dir, ''))
                 genotype={}
                 genotype['ops'] = []
                 genotype['states'] = []
@@ -147,8 +158,8 @@ def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u'],edge_num=2, 
             return genotypes
         with torch.no_grad():
             genotypes = best_pick(alphas)
-        for cell_idx, type in zip(genotypes, types):
-            plot_cell(cell_idx, type,dir, epoch, nodes=nodes, use_old_ver=use_old_ver)
+        for cell_idx, type, alpha in zip(genotypes, types, alphas):
+            plot_cell(cell_idx, type,dir, epoch, alpha,nodes=nodes, use_old_ver=use_old_ver)
             save_cell_idx(cell_idx, type,dir, epoch, use_old_ver=use_old_ver)
     else:
         def best_pick(alphas):
@@ -158,8 +169,8 @@ def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u'],edge_num=2, 
                     best_alphas.append(torch.topk(torch.softmax(alpha, dim=-1), best, dim=-1)[-1])
             return best_alphas
         indices = best_pick(alphas)
-        for cell_idx, type in zip(indices, types):
-            plot_cell(cell_idx, type,dir, epoch, nodes=nodes, use_old_ver=0)
+        for cell_idx, type, alpha in zip(indices, types, alphas):
+            plot_cell(cell_idx, type,dir, epoch, alpha,nodes=nodes, use_old_ver=0)
             save_cell_idx(cell_idx,type,dir,epoch, use_old_ver=0)
         #return indices
 
