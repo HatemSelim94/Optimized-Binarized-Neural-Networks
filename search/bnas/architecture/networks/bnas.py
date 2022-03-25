@@ -7,51 +7,6 @@ import random
 import numpy as np
 import copy
 import torch
-def sample_from_lists_(l):
-    s = []
-    for i, v in enumerate(l):
-        sampled_num = random.sample(v, 1)
-        s.append(sampled_num)
-        v.remove(sampled_num[0])
-    return s
-
-def softmax(l):
-    exp_output = np.exp(l)
-    output = exp_output/sum(exp_output)
-    return output
-
-def in_range(num, min_limit=0, max_limit=2):
-    return min(max(num, min_limit), max_limit)
-
-def max_two(edges, idx):
-    ops  = [0, 0 ]
-    states = [0, 0]
-    max_num_1 = -100
-    max_num_2 = -100
-    for i, (edge,id) in enumerate(zip(edges, idx)):
-        max_candidate = edge.selection[id]
-        if max_num_1 < max_candidate:
-            max_num_2 = max_num_1
-            max_num_1 = max_candidate 
-            ops[-1] = ops[0]
-            ops[0] = id
-            states[-1] = states[0]
-            states[0] = i
-        elif max_num_2 < max_candidate:
-            max_num_2 = max_candidate
-            states[-1] = i
-            ops[-1] = id
-    return tuple(ops), states
-
-def save_gene(genotype, type, dir, epoch='final'):
-    filefolder = f'darts_relaxed_cell_{type}' 
-    filepath = os.path.join(dir, filefolder)
-    filename = os.path.join(filepath,f'genotype_{epoch}')
-    best_filename = os.path.join(filepath,f'genotype_best')
-    with open(filename+'.json','w') as f:
-        json.dump(genotype,f)
-    with open(best_filename+'.json','w') as f:
-        json.dump(genotype,f)
 
 
 class BnasCells: 
@@ -215,3 +170,50 @@ class BnasEdge:
     
     def _create_selection_likelihood(self):
         self.selection = {id:0 for id in self.original_primitives_idx}
+
+
+def sample_from_lists_(l):
+    s = []
+    for i, v in enumerate(l):
+        sampled_num = random.sample(v, 1)
+        s.append(sampled_num)
+        v.remove(sampled_num[0])
+    return s
+
+def softmax(l):
+    exp_output = np.exp(l)
+    output = exp_output/sum(exp_output)
+    return output
+
+def in_range(num, min_limit=0, max_limit=2):
+    return min(max(num, min_limit), max_limit)
+
+def max_two(edges, idx):
+    ops  = [0, 0 ]
+    states = [0, 0]
+    max_num_1 = -100
+    max_num_2 = -100
+    for i, (edge,id) in enumerate(zip(edges, idx)):
+        max_candidate = edge.selection[id]
+        if max_num_1 < max_candidate:
+            max_num_2 = max_num_1
+            max_num_1 = max_candidate 
+            ops[-1] = ops[0]
+            ops[0] = id
+            states[-1] = states[0]
+            states[0] = i
+        elif max_num_2 < max_candidate:
+            max_num_2 = max_candidate
+            states[-1] = i
+            ops[-1] = id
+    return tuple(ops), states
+
+def save_gene(genotype, type, dir, epoch='final'):
+    filefolder = f'darts_relaxed_cell_{type}' 
+    filepath = os.path.join(dir, filefolder)
+    filename = os.path.join(filepath,f'genotype_{epoch}')
+    best_filename = os.path.join(filepath,f'genotype_best')
+    with open(filename+'.json','w') as f:
+        json.dump(genotype,f)
+    with open(best_filename+'.json','w') as f:
+        json.dump(genotype,f)
