@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .operations.search_operations import BinConvbn1x1, BinConvT1x1, ConvBn, BasicBinConv1x1, BinDilConv3x3
+from .operations.search_operations import BinConvbn1x1, BinConvT1x1, ConvBn, BasicBinConv1x1, BinDilConv3x3,BinConv1x1
 
 from .operations import EvalSum, Preprocess, FpPreprocess,EvalCat, EvalBilinear
 from .edge import EvalEdge
@@ -48,15 +48,7 @@ class NCell(nn.Module):
                 else:
                     recurs(mod, state)
         recurs(self, state)
-    
-    def binarize_input(self, state=True):
-        def recurs(net,state):
-            for mod in net.children():
-                if hasattr(mod,'binarized_input'):
-                    setattr(mod,'binarized_input',state)
-                else:
-                    recurs(mod, state)
-        recurs(self, state)
+    BinConv1x1
 
 
 class RCell(nn.Module):
@@ -329,7 +321,7 @@ class UCellNSkip(nn.Module):
 ###################################################################
 # old ver Darts
 class NCellNSkipOld(nn.Module):
-    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1,activation='htanh') :
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,skip_ch,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1,activation='htanh') :
         super(NCellNSkipOld, self).__init__()
         self.edges_num = edges_num
         self.node_num = node_num
@@ -342,8 +334,7 @@ class NCellNSkipOld(nn.Module):
         self.genotype_states_idx = genotype['states']
         for n in range(node_num):
             for e in range(edges_num):
-                stride = 2 if n+e <= 1 else 1
-                self.edges.append(EvalEdge(C, stride, [genotype['ops'][i]], 'n', affine, binary,padding_mode=padding_mode,jit=jit, binarization=binarization,activation=activation))
+                self.edges.append(EvalEdge(C, 1, [genotype['ops'][i]], 'n', affine, binary,padding_mode=padding_mode,jit=jit, binarization=binarization,activation=activation))
                 i+=1
         self.sum = EvalSum()
         self.cat = EvalCat()
@@ -530,22 +521,33 @@ class Pooling(nn.Module):
         return x
 
 
+
 class BinASPP(nn.Module):
-    def __init__(self, in_channels, out_channels,padding_mode,jit, dropout2d, rates=[1,4,8,12], binarization=1,activation='htanh'):
+    def __init__(self, in_channels, out_channels,padding_mode,jit, dropout2d, rates=[12,24, 36], binarization=1,activation='htanh', binary=False):
         super(BinASPP, self).__init__()
         self.layers = nn.ModuleList()
         self.layers.append(Pooling(in_channels, out_channels, padding_mode,jit, dropout2d,binarization=binarization))
-        self.layers.append(BinConvbn1x1(in_channels, out_channels,padding_mode=padding_mode, jit=jit, dropout2d=dropout2d, binarization=binarization, activation=activation))
+        self.layers.append(BinConv1x1(in_channels, out_channels,padding_mode=padding_mode, jit=jit, dropout2d=dropout2d, binarization=binarization, activation=activation))
         for r in rates:
             self.layers.append(BinDilConv3x3(in_channels, out_channels,stride=1, padding=r,dilation=r, padding_mode=padding_mode,jit=jit, dropout2d=dropout2d, binarization=binarization,activation=activation))
-        self.sum = EvalSum()
+        #self.sum = EvalSum()
+        if binary:
+            self.project= BinConv1x1(len(self.layers) * out_channels, out_channels, 1, jit=jit, binarization=binarization, dropout2d=dropout2d, activation=activation)
+            
+        else:    
+            self.project= nn.Sequential(
+                nn.Conv2d(len(self.layers) * out_channels, out_channels, 1, bias=False),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU()
+                )
 
     def forward(self, x):
         output = []
         for mod in self.layers:
             output.append(mod(x))
-        s = torch.sum(torch.stack(output, dim=1), dim=1)
-        return s
+        #s = torch.sum(torch.cat(output, dim=1), dim=1)
+        #return s
+        return self.project(torch.cat(output, dim=1))
 
     def binarize_weight(self, state=True):
         def recurs(net,state):

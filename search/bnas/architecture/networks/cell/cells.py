@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .operations.search_operations import BinConvbn1x1, BinConvT1x1, ConvBn, BasicBinConv1x1, BinDilConv3x3
+from .operations.search_operations import BinConvbn1x1, BinConvT1x1, ConvBn, BasicBinConv1x1, BinDilConv3x3, BinConv1x1
 
 from .operations import Sum, Preprocess, FpPreprocess,Cat, Bilinear
 from .edge import Edge
@@ -47,7 +47,7 @@ class NCellNSkipOld(nn.Module):
             return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
         else:
             for _ in range(self.node_num):
-                s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[offset+j], dim=-1), idx) for j, h in enumerate(states)]) #offset +j = 2
+                s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[offset+j], dim=-1), idx=edge_idx) for j, (h,edge_idx) in enumerate(zip(states, idx))]) #offset +j = 2
                 offset += len(states)
                 states.append(s)
             return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
@@ -150,7 +150,7 @@ class RCellNSkipOld(nn.Module):
             return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
         else:
             for _ in range(self.node_num):
-                s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[offset+j], dim=-1)) for j, h in enumerate(states)]) #offset +j = 2
+                s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[offset+j], dim=-1),idx=edge_idx) for j, (h,edge_idx) in enumerate(zip(states, idx))])  #offset +j = 2
                 offset += len(states)
                 states.append(s)
             return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
@@ -249,7 +249,7 @@ class UCellNSkipOld(nn.Module):
             return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
         else:
             for _ in range(self.node_num):
-                s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[offset+j], dim=-1)) for j, h in enumerate(states)]) #offset +j = 2
+                s = self.sum([self.edges[offset+j](h, F.softmax(self.alphas[offset+j], dim=-1), idx=edge_idx) for j, (h,edge_idx) in enumerate(zip(states, idx))]) #offset +j = 2
                 offset += len(states)
                 states.append(s)
             return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
@@ -345,21 +345,30 @@ class Pooling(nn.Module):
 
 
 class BinASPP(nn.Module):
-    def __init__(self, in_channels, out_channels,padding_mode,jit, dropout2d, rates=[1,4,8,12], binarization=1,activation='htanh'):
+    def __init__(self, in_channels, out_channels,padding_mode,jit, dropout2d, rates=[12,24, 36], binarization=1,activation='htanh', binary=False):
         super(BinASPP, self).__init__()
         self.layers = nn.ModuleList()
         self.layers.append(Pooling(in_channels, out_channels, padding_mode,jit, dropout2d,binarization=binarization))
-        self.layers.append(BinConvbn1x1(in_channels, out_channels,padding_mode=padding_mode, jit=jit, dropout2d=dropout2d, binarization=binarization, activation=activation))
+        self.layers.append(BinConv1x1(in_channels, out_channels,padding_mode=padding_mode, jit=jit, dropout2d=dropout2d, binarization=binarization, activation=activation))
         for r in rates:
             self.layers.append(BinDilConv3x3(in_channels, out_channels,stride=1, padding=r,dilation=r, padding_mode=padding_mode,jit=jit, dropout2d=dropout2d, binarization=binarization,activation=activation))
-        self.sum = Sum()
+        #self.sum = EvalSum()
+        if binary:
+            self.project= BinConv1x1(len(self.layers) * out_channels, out_channels, 1, jit=jit, binarization=binarization, dropout2d=dropout2d, activation=activation)
+        else:    
+            self.project= nn.Sequential(
+                nn.Conv2d(len(self.layers) * out_channels, out_channels, 1, bias=False),
+                nn.BatchNorm2d(out_channels),
+                nn.ReLU()
+                )
 
     def forward(self, x):
         output = []
         for mod in self.layers:
             output.append(mod(x))
-        s = torch.sum(torch.stack(output, dim=1), dim=1)
-        return s
+        #s = torch.sum(torch.cat(output, dim=1), dim=1)
+        #return s
+        return self.project(torch.cat(output, dim=1))
 
     def binarize_weight(self, state=True):
         def recurs(net,state):

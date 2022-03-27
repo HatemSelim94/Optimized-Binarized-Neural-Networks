@@ -132,13 +132,15 @@ def ops_counter(net, dummy_input_shape, device='cuda'):
             elif isinstance(mod, Cat) or isinstance(mod, EvalCat):
                 handles.append(mod.register_forward_hook(cat_ops_forward_hook))
             elif isinstance(mod, nn.Conv2d):
+                print('Warning: FP conv found')
                 handles.append(mod.register_forward_hook(conv_ops_forward_hook))
             elif isinstance(mod, nn.ConvTranspose2d):
+                print('Warning: FP tconv found')
                 handles.append(mod.register_forward_hook(conv_ops_forward_hook))
             elif isinstance(mod, BinActivation) or isinstance(mod, EvalBinActivation):
                 handles.append(mod.register_forward_hook(binarization_ops_forward_hook))
             else:
-                print(f'Warning: {type(mod)} ops is not defined')
+                #print(f'Warning: {type(mod)} ops is not defined')
                 pass
             attach_hooks(mod)
     attach_hooks(net)
@@ -147,4 +149,4 @@ def ops_counter(net, dummy_input_shape, device='cuda'):
     total_ops = get_total_ops(net)
     for handle in handles:
         handle.remove()
-    return round(total_ops) # giga ops
+    return round(total_ops) # miga ops

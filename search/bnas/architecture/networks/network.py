@@ -57,11 +57,11 @@ class Network(nn.Module):
         idx = {cell_type: i  for i, cell_type in enumerate(self.unique_cells)} 
         for i, cell_type in enumerate(self.cells_sequence): 
             if cell_type == 'r':
-                c = c_prev*2
+                c = int(c_prev*args.channel_expansion_ratio_r)
             elif cell_type == 'u':
-                c = c_prev//14
+                c = int(c_prev//args.channel_reduction_ratio_u)
             elif cell_type == 'n':
-                c = c_prev
+                c = int(c_prev*args.channel_normal_ratio_n)
             else:
                 continue
             if cell_type =='r':
@@ -154,7 +154,7 @@ class Network(nn.Module):
         return len(worst_idx[self.unique_cells[0]][0])
     
     def get_k(self):
-        training_idx = self.cells_primitives.get_training_idx()
+        training_idx = self.bnas.get_training_idx()
         k = len(training_idx[self.unique_cells[0]][0]) # k in the paper
         return k
 
@@ -169,8 +169,10 @@ class Network(nn.Module):
 
 
     def new_full_model(self, sampled_primitives_idx):
+        self.args.affine=True
         model_new = SampledNetwork(self.args, sampled_primitives_idx).cuda()
-        model_new.load_state_dict(self.state_dict(), strict=True)
+        self.args.affine=False
+        model_new.load_state_dict(self.state_dict(), strict=False)
         return model_new
     
     def update_score(self, t, score):

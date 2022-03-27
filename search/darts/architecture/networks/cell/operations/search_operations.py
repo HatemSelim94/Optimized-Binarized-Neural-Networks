@@ -102,7 +102,7 @@ class BinConv3x3(BinConvBnHTanh):
         
 class BasicBinConv1x1(BinConv):
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False, binarization=1, activation='htanh'):
-        super(BasicBinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,binarization,activation)
+        super(BasicBinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,binarization)
 
 
 class Identity(nn.Module):

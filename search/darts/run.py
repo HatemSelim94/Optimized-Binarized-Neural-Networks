@@ -71,6 +71,8 @@ parser.add_argument('--step_two', type=int, default=30)
 parser.add_argument('--seaborn_style', type=int, default=0)
 parser.add_argument('--channel_expansion_ratio_r', type= float, default=2)
 parser.add_argument('--channel_reduction_ratio_u', type=float, default=14)
+parser.add_argument('--channel_normal_ratio_n',type=float, default=0.25)
+parser.add_argument('--binary_aspp', type=int, default=1)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 

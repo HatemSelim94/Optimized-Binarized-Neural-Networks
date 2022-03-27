@@ -34,6 +34,7 @@ class Network(nn.Module):
         self.use_skip = args.use_skip
         self.kd = args.use_kd
         self.use_old_ver = args.use_old_ver
+        self.binary_aspp = args.binary_aspp
         if self.use_old_ver:
             self.total_edge_num = sum([self.edge_num+i for i in range(self.nodes_num)])
             self.alphas = [torch.empty((self.total_edge_num ,self.ops_num), requires_grad=True, device=args.device) for _ in range(self.unique_cells_len)]
@@ -56,7 +57,7 @@ class Network(nn.Module):
             elif cell_type == 'u':
                 c = int(c_prev//args.channel_reduction_ratio_u)
             elif cell_type == 'n':
-                c = c_prev
+                c = int(c_prev*args.channel_normal_ratio_n)
             else:
                 continue
             if cell_type =='r':
@@ -73,18 +74,15 @@ class Network(nn.Module):
             else:
                 c_prev = self.nodes_num*c
         
-        if self.network_type == 'cells':
-            scale = 2 # stem i.e. first layer
-            for cell in self.cells_sequence:
-                if cell == 'r':
-                    scale*=2
-                if cell == 'u':
-                    scale /=2
-            last_layer_ch = c_prev
-        elif self.network_type == 'aspp':
-            scale = 4
-            last_layer_ch = 64
-            self.binaspp = BinASPP(c_prev, 64, self.padding_mode, self.jit, self.dropout2d, rates=[4,8,12,18], binarization =self.binarization)
+        scale = 2 # stem i.e. first layer
+        for cell in self.cells_sequence:
+            if cell == 'r':
+                scale*=2
+            if cell == 'u':
+                scale /=2
+        last_layer_ch = c_prev
+        if self.network_type == 'aspp':
+            self.binaspp = BinASPP(c_prev, c_prev, self.padding_mode, self.jit, self.dropout2d, rates=[4,8,12,18], binarization =self.binarization, binary=args.binary_aspp)
         self.upsample = Bilinear(scale_factor=scale)
         # last layer (default:bin)
         self.last_layer = LastLayer(last_layer_ch, classes_num=args.num_of_classes,affine=self.affine, binary=args.last_layer_binary, kernel_size=args.last_layer_kernel_size,jit=args.jit, binarization=self.binarization) #no activation

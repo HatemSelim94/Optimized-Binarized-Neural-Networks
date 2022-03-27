@@ -98,7 +98,7 @@ def plot_cell(idx,cell_type, dir,epoch,alpha, view=False, nodes=4, use_old_ver=1
         os.makedirs(filepath)
     filename = os.path.join(filepath, f'genotype_{epoch}')
     g.render(filename,view=view)
-    plot_alpha_certainty(alpha, filename+'certainty')
+    plot_alpha_certainty(alpha, filename+'_certainty')
 
 def save_cell_idx(cell_idx, type, dir, epoch=0,use_old_ver=1):
     if use_old_ver:
@@ -122,12 +122,17 @@ def save_cell_idx(cell_idx, type, dir, epoch=0,use_old_ver=1):
 
 def plot_alpha_certainty(alpha, filename, verbose=False, save=True):
         alpha_np = alpha.detach().clone().cpu().numpy()
-        sns_object=sns.heatmap(alpha_np, annot=True, cmap='Greens')
+        #print(alpha_np.shape)
+        sns_object=sns.heatmap(alpha_np, annot=True, cmap='Greens', center=0.5, vmin=0, vmax=1)
         sns_object.set(xlabel='Operations', ylabel='Alphas')
         if verbose: 
             plt.show()
         if save:
+            #print(alpha_np.shape)
+            plt.tight_layout()
             plt.savefig(filename)
+            plt.clf()
+            
 
 def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u'],edge_num=2, best=1, use_old_ver=1):
     if use_old_ver:
@@ -135,7 +140,7 @@ def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u'],edge_num=2, 
             # output (8, 8) idx 
             genotypes = []
             for alpha in alphas:
-                plot_alpha_certainty(alpha, os.path.join(dir, ''))
+                alpha = torch.softmax(alpha.cpu(), -1)
                 genotype={}
                 genotype['ops'] = []
                 genotype['states'] = []
@@ -143,7 +148,7 @@ def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u'],edge_num=2, 
                 end = 2
                 for n in range(nodes):
                     with torch.no_grad():
-                        best_ops_val, best_ops_idx = torch.topk(torch.softmax(alpha[start:end], dim=-1), best, -1, sorted=False)
+                        best_ops_val, best_ops_idx = torch.topk(alpha[start:end], best, -1, sorted=False)
                         _, best_edges_idx = torch.topk(best_ops_val, edge_num, 0,sorted=False)
                     best_edges_idx = best_edges_idx.cpu().squeeze().tolist()
                     best_ops = best_ops_idx[best_edges_idx].cpu().squeeze(-1).tolist() 
@@ -159,18 +164,19 @@ def save_genotype(alphas, dir,epoch=0, nodes=4, types=['n','r','u'],edge_num=2, 
         with torch.no_grad():
             genotypes = best_pick(alphas)
         for cell_idx, type, alpha in zip(genotypes, types, alphas):
-            plot_cell(cell_idx, type,dir, epoch, alpha,nodes=nodes, use_old_ver=use_old_ver)
+            plot_cell(cell_idx, type,dir, epoch, torch.softmax(alpha.cpu(), -1),nodes=nodes, use_old_ver=use_old_ver)
             save_cell_idx(cell_idx, type,dir, epoch, use_old_ver=use_old_ver)
     else:
         def best_pick(alphas):
             best_alphas = []
             for alpha in alphas:
+                alpha = torch.softmax(alpha.cpu(), -1)
                 with torch.no_grad():
-                    best_alphas.append(torch.topk(torch.softmax(alpha, dim=-1), best, dim=-1)[-1])
+                    best_alphas.append(torch.topk(alpha, best, dim=-1)[-1])
             return best_alphas
         indices = best_pick(alphas)
         for cell_idx, type, alpha in zip(indices, types, alphas):
-            plot_cell(cell_idx, type,dir, epoch, alpha,nodes=nodes, use_old_ver=0)
+            plot_cell(cell_idx, type,dir, epoch, torch.softmax(alpha.cpu(), -1),nodes=nodes, use_old_ver=0)
             save_cell_idx(cell_idx,type,dir,epoch, use_old_ver=0)
         #return indices
 

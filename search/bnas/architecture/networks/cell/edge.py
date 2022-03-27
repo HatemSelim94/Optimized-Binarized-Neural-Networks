@@ -28,7 +28,7 @@ class Edge(nn.Module):
     def forward(self, x, weights=None, idx=None):
         if weights is None:
             if len(idx) ==1:
-                return self.op[idx[0]](x)
+                return self.ops[idx[0]](x)
             return self.sum([op(x) for id, op in enumerate(self.ops) if id in idx])
         else:
             if self.objs is None:

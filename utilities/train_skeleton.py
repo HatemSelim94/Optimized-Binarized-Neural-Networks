@@ -13,6 +13,12 @@ from .param_size import params_size_counter
 from .memory_counter import max_mem_counter
 from .latency import calculate_ops_latency, get_latency
 
+class DummyScheduler:
+    def __init__(self):
+        pass
+    def __call__(self, args):
+        pass
+
 
 def clean_dir(args):
     try:
@@ -122,13 +128,16 @@ def train_arch(model_dataloader, arch_dataloader, arch, criterion, optimizer, ep
     #return round(mean_iou*100, 2), train_loss
 
 
-def train(train_queue, model, criterion, optimizer, num_of_classes=3,device='cuda'):
+def train(train_queue, model, criterion, optimizer, num_of_classes=3,device='cuda', scheduler=None, epoch=None, poly_scheduler=None):
   metric = SegMetrics(num_of_classes)
+  scheduler = scheduler if poly_scheduler else DummyScheduler()
   train_loss = 0
   model.train()
   for step, (imgs, trgts, _) in enumerate(train_queue):
     imgs = imgs.to(device)
     trgts = trgts.to(device, non_blocking = True)
+    if poly_scheduler:
+        scheduler(step, epoch)
     optimizer.zero_grad()
     outputs = model(imgs)
     torch.use_deterministic_algorithms(False)
@@ -144,7 +153,7 @@ def train(train_queue, model, criterion, optimizer, num_of_classes=3,device='cud
   mean_iou, _ = metric.get_iou()
   train_loss /= len(train_queue.dataset)
 
-  return round(mean_iou*100, 2),loss
+  return round(mean_iou*100, 2),train_loss
 
 
 def infer(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
@@ -167,7 +176,7 @@ def infer(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
     miou, _ = metric.get_iou()
       #if step % args.report_freq == 0:
     val_loss /= len(valid_queue.dataset)
-    return round(miou*100, 2), loss
+    return round(miou*100, 2), val_loss
   
 class lr_function:
   def __init__(self, epochs):
@@ -184,7 +193,10 @@ class Clipper:
         if optim == 'Adamax':
            clipped_optim = ClippedAdamax(*args)
         elif optim == 'Adam':
-            clipped_optim = ClippedAdam(*args)
+            if kwargs is None:
+                clipped_optim = ClippedAdam(*args)
+            else:
+                clipped_optim = ClippedAdam(*args, **kwargs)
         elif optim == 'SGD':
             clipped_optim = ClippedSGD(*args)
         return clipped_optim
@@ -388,4 +400,104 @@ def layers_state_setter(net,input=True, weight=True):
             recurs(child,input, weight)
     recurs(net,input, weight)
     
-    
+##################################################################################################
+##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+## Created by: Hang Zhang
+## ECE Department, Rutgers University
+## Email: zhang.hang@rutgers.edu
+## Copyright (c) 2017
+##
+## This source code is licensed under the MIT-style license found in the
+## LICENSE file in the root directory of this source tree
+##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+import math
+
+class LR_Scheduler(object):
+    """Learning Rate Scheduler
+
+    Step mode: ``lr = baselr * 0.1 ^ {floor(epoch-1 / lr_step)}``
+
+    Cosine mode: ``lr = baselr * 0.5 * (1 + cos(iter/maxiter))``
+
+    Poly mode: ``lr = baselr * (1 - iter/maxiter) ^ 0.9``
+
+    Args:
+        args:  :attr:`args.lr_scheduler` lr scheduler mode (`cos`, `poly`),
+          :attr:`args.lr` base learning rate, :attr:`args.epochs` number of epochs,
+          :attr:`args.lr_step`
+
+        iters_per_epoch: number of iterations per epoch
+    """
+    def __init__(self,  num_epochs,optimizer, iters_per_epoch=0,mode='poly',
+                base_lr=0.00004,lr_step=20, warmup_epochs=0):
+        self.mode = mode
+        print('Using {} LR Scheduler!'.format(self.mode))
+        self.lr = base_lr
+        if mode == 'step':
+            assert lr_step
+        self.lr_step = lr_step
+        self.iters_per_epoch = iters_per_epoch
+        self.N = num_epochs * iters_per_epoch
+        self.epoch = -1
+        self.warmup_iters = warmup_epochs * iters_per_epoch
+        self.optimizer = optimizer
+    def __call__(self, i, epoch):
+        T = epoch * self.iters_per_epoch + i
+        if self.mode == 'cos':
+            lr = 0.5 * self.lr * (1 + math.cos(1.0 * T / self.N * math.pi))
+        elif self.mode == 'poly':
+            lr = self.lr * pow((1 - 1.0 * T / self.N), 0.9)
+        elif self.mode == 'step':
+            lr = self.lr * (0.1 ** (epoch // self.lr_step))
+        else:
+            raise NotImplemented
+        # warm up lr schedule
+        if self.warmup_iters > 0 and T < self.warmup_iters:
+            lr = lr * 1.0 * T / self.warmup_iters
+        if epoch > self.epoch:
+            self.epoch = epoch
+        assert lr >= 0
+        self._adjust_learning_rate(lr)
+
+    def _adjust_learning_rate(self, lr):
+        if len(self.optimizer.param_groups) == 1:
+            self.optimizer.param_groups[0]['lr'] = lr
+        else:
+            # enlarge the lr at the head
+            self.optimizer.param_groups[0]['lr'] = lr
+            for i in range(1, len(self.optimizer.param_groups)):
+                self.optimizer.param_groups[i]['lr'] = lr * 10
+
+class BnasScore:
+    def __init__(self, val_loader, criterion, nclass,dummy_input_shape, device):
+        self.val_loader = val_loader
+        self.criterion = criterion.to(device)
+        self.nclass = nclass
+        self.device = device
+        self.input_shape = dummy_input_shape
+    def set_parameters(self, latency_gamma=0, params_delta=0, theta_ops=0, 
+                        required_latency_ms=10, required_params_size_kb=100,
+                        required_ops_mops = 200):
+        self.latency_gamma = latency_gamma
+        self.required_latency_ms = required_latency_ms
+        self.params_delta = params_delta
+        self.required_params_size_kb = required_params_size_kb
+        self.theta_ops = theta_ops
+        self.required_ops_mops = required_ops_mops
+
+    def get_score(self, model):
+        with torch.no_grad():
+            miou,_ = infer(self.val_loader, model,self.criterion, self.nclass, self.device) # 0-100
+            fitness = miou  
+            if self.latency_gamma > 0:
+                latency_ms, _ = get_latency(model, self.input_shape)
+                fitness -= max(latency_ms-self.required_latency_ms, 0)*self.latency_gamma
+            if self.params_delta > 0:
+                model_size = params_size_counter(model, self.input_shape) # bytes
+                fitness -= max((model_size/1000)-self.required_params_size_kb, 0)*self.params_delta 
+            if self.theta_ops > 0:
+                mops = ops_counter(model, self.input_shape)
+                fitness -= max(mops-self.required_ops_mops, 0)*self.theta_ops
+        return fitness
+

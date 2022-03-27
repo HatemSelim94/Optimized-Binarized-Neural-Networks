@@ -5,11 +5,11 @@ import torch.nn as nn
 from torch.utils.data import Subset
 import argparse
 import os
-
-from architecture import Architecture, Network
+import math
+from architecture import Network, SampledNetwork, Architecture
 from processing import Transformer, DataSets
 from processing.datasets import CityScapes, KittiDataset
-from utilities import infer, set_seeds, Clipper, DataPlotter, Tracker, train_arch, model_info, clean_dir, prepare_ops_metrics
+from utilities import infer, set_seeds, Clipper, DataPlotter, Tracker, train_arch, model_info, clean_dir, prepare_ops_metrics, train, BnasScore
 
 parser  = argparse.ArgumentParser('DARTS')
 parser.add_argument('--data_name', type=str, default='cityscapes')
@@ -69,8 +69,20 @@ parser.add_argument('--generate_jit', type=int, default=0)
 parser.add_argument('--use_kd', type=int, default=0)
 parser.add_argument('--step_two', type=int, default=30)
 parser.add_argument('--seaborn_style', type=int, default=0)
-parser.add_argument('--channel_expansion_ratio_r', type= int, default=2)
-parser.add_argument('--channel_reduction_ratio_u', type=int, default=14)
+parser.add_argument('--channel_expansion_ratio_r', type= float, default=2)
+parser.add_argument('--channel_reduction_ratio_u', type=float, default=14)
+parser.add_argument('--channel_normal_ratio_n',type=float, default=0.25)
+parser.add_argument('--binary_aspp', type=int, default=1)
+parser.add_argument('--bnas_t', type=int, default=3)
+parser.add_argument('--bnas_sample_epochs', type=int, default=3)
+parser.add_argument('--latency_gamma', type=float, default=0)
+parser.add_argument('--params_delta', type=float, default=0)
+parser.add_argument('--theta_ops', type=float, default=0)
+parser.add_argument('--arch_v_epochs', type=int, default=2)
+parser.add_argument('--arch_t_epochs', type=int, default=3)
+parser.add_argument('--required_latency_ms', type=float, default=5)
+parser.add_argument('--required_params_size_kb', type=float, default=100)
+parser.add_argument('--required_ops_mops', type=float, default=100)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -89,7 +101,7 @@ def main():
     net._set_criterion(criterion)
     input_shape = (1, 3, args.image_size, args.image_size)
     model_info(net, input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
-    prepare_ops_metrics(net, input_shape)
+    #prepare_ops_metrics(net, input_shape)
     arch = Architecture(net, args)
     train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
     val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size,args.image_size]}})
@@ -124,6 +136,10 @@ def main():
     scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step:((step/args.epochs))**2)
     data = DataPlotter(os.path.join(args.experiment_path, args.experiment_name))
     tracker = Tracker(args.epochs)
+    bnas_score_func = BnasScore(val_loader, criterion, args.num_of_classes,input_shape,'cuda')
+    bnas_score_func.set_parameters(args.latency_gamma, args.params_delta, args.theta_ops,
+                                    args.required_latency_ms, args.required_params_size_kb,
+                                    args.required_ops_mops)
     tracker.start()
     for epoch in range(args.epochs):
         # training
@@ -136,6 +152,26 @@ def main():
         if epoch > args.arch_start-1:
             arch.save_genotype(os.path.join(args.experiment_path, args.experiment_name), epoch, nodes=args.nodes_num, use_old_ver=args.use_old_ver)
     data.save_as_json()
+    ### BNAS
+    print('BNAS algorithm started')
+    k=arch.model.get_k()
+    print(f'Current number of operations per edge: {k}')
+    while(k!=1):
+        arch.model.set_worst_primitives()
+        for t in range(args.bnas_t):
+            for e in range(math.ceil(k/2)):
+                sampled_network = arch.model.sample_network()
+                sampled_net_optim = torch.optim.Adam(sampled_network.parameters(),0.001)
+                for _ in range(args.bnas_sample_epochs):
+                    train(train_loader, sampled_network, criterion, sampled_net_optim,args.num_of_classes,device=args.device)
+                model_score = bnas_score_func.get_score(sampled_network)
+                arch.model.update_score(t, model_score)
+        arch.model.reudce_space() # k -=1 
+        k = arch.model.get_k()
+        print(f'Current number of operations per edge: {k}')
+        for _ in range(args.bnas_sample_epochs):
+            train_arch(train_loader, val_loader, arch, criterion, optimizer, epoch, arch_start=args.arch_start,both=args.both)            
+    arch.model.bnas.save_genotype(args)    
     tracker.end()
   
 if __name__ == '__main__':

@@ -13,6 +13,8 @@ def memory_forward_hook(mod, input, output):
     #    print(input[0].shape)
     #    print(output[0].shape)
     # input
+    #if torch.is_tensor(input[0]):
+    #    print(mod, input[0].shape, output.shape)
     if isinstance(input[0], list) or isinstance(input[0], tuple):
         list_len = len(input[0])
         for i in range(list_len):

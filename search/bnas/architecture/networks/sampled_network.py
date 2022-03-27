@@ -30,6 +30,7 @@ class SampledNetwork(nn.Module):
         self.initial_channels = args.stem_channels
         self.jit = args.jit
         self.onnx = args.onnx
+        self.use_skip = args.use_skip
         self.network_type = args.network_type
         self.dropout2d = args.dropout2d_prob
         self.padding_mode=args.padding_mode
@@ -55,11 +56,11 @@ class SampledNetwork(nn.Module):
         idx = {cell_type: i  for i, cell_type in enumerate(self.unique_cells)} 
         for i, cell_type in enumerate(self.cells_sequence): 
             if cell_type == 'r':
-                c = c_prev*2
+                c = int(c_prev*args.channel_expansion_ratio_r)
             elif cell_type == 'u':
-                c = c_prev//14
+                c = int(c_prev//args.channel_reduction_ratio_u)
             elif cell_type == 'n':
-                c = c_prev
+                c = int(c_prev*args.channel_normal_ratio_n)
             else:
                 continue
             if cell_type =='r':
@@ -76,18 +77,15 @@ class SampledNetwork(nn.Module):
             else:
                 c_prev = self.nodes_num*c
         
-        if self.network_type == 'cells':
-            scale = 2 # stem i.e. first layer
-            for cell in self.cells_sequence:
-                if cell == 'r':
-                    scale*=2
-                if cell == 'u':
-                    scale /=2
-            last_layer_ch = c_prev
-        elif self.network_type == 'aspp':
-            scale = 4
-            last_layer_ch = 64
-            self.binaspp = BinASPP(c_prev, 64, self.padding_mode, self.jit, self.dropout2d, rates=[4,8,12,18], binarization =self.binarization)
+        scale = 2 # stem i.e. first layer
+        for cell in self.cells_sequence:
+            if cell == 'r':
+                scale*=2
+            if cell == 'u':
+                scale /=2
+        last_layer_ch = c_prev
+        if self.network_type == 'aspp':
+            self.binaspp = BinASPP(last_layer_ch, last_layer_ch, self.padding_mode, self.jit, self.dropout2d, rates=[4,8,12,18], binarization =self.binarization)
         self.upsample = Bilinear(scale_factor=scale)
         # last layer (default:bin)
         self.last_layer = LastLayer(last_layer_ch, classes_num=args.num_of_classes,affine=self.affine, binary=args.last_layer_binary, kernel_size=args.last_layer_kernel_size,jit=args.jit, binarization=self.binarization) #no activation
@@ -99,10 +97,10 @@ class SampledNetwork(nn.Module):
             s0, s1 = s1, cell(s0, s1, idx=self.bnas_idx[cell.cell_type])
         if self.network_type == 'aspp':
                 x = self.binaspp(s1)
-                x = self.upsample(x)
+                x = self.last_layer(x)
         else:
-            x = self.upsample(s1)
-        x = self.last_layer(x)
+            x = self.last_layer(s1)
+        x = self.upsample(x)
         return x
 
     def save_genotype(self, dir=None, epoch=0, nodes=4):

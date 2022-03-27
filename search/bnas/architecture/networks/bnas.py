@@ -1,6 +1,3 @@
-class Bnas:
-    def __init__(self) -> None:
-        pass
 import os
 import json
 import random
@@ -8,15 +5,39 @@ import numpy as np
 import copy
 import torch
 
+from .utilities.genotype import plot_cell
+NR_PRIMITIVES = [
+    'max_pool_3x3',
+    'avg_pool_3x3',
+    'conv_1x1',
+    'conv_3x3',
+    'dil_conv_3x3_r4',
+    'skip_connect'
+]
 
-class BnasCells: 
-    def __init__(self, primitives, edges=14,nodes=4, t=4, unique_cell_types=['r','n','u'], edges_per_node=2):
+UP_PRIMITIVES = [
+    'tconv_1x1',
+    'tconv_3x3',
+    'tconv_5x5',
+    'dil_tconv_3x3_r4',
+    'dil_tconv_3x3_r6',
+    'dil_tconv_3x3_r8'
+]
+
+class Bnas: 
+    def __init__(self, primitives=None, edges=14,nodes=4, t=4, unique_cell_types=['r','n','u'], edges_per_node=2):
         '''
         primitives(dict): dictionary of operations for each cell
         edges(int): number of edges in a cell
         nodes(int): number of nodes in a cell
         t(int): number of sampled nets to generate scores
         '''
+        if primitives is None:
+            primitives = {}
+            primitives['r'] = NR_PRIMITIVES
+            primitives['n'] = NR_PRIMITIVES
+            primitives['u'] = UP_PRIMITIVES
+
         self.edges_per_node = edges_per_node
         self.nodes_no = nodes
         self.edges_no = edges
@@ -61,7 +82,7 @@ class BnasCells:
             for n in range(self.nodes_no):
                 edges = self.cell_edges[type].edges[start:end]
                 edges_idx = cell_idx[start:end]
-                op1,op2, states= max_two(edges, edges_idx)
+                (op1,op2), states= max_two(edges, edges_idx)
                 genotype_cell['ops'].append(op1)
                 genotype_cell['ops'].append(op2)
                 genotype_cell['states'].append(states)
@@ -69,6 +90,7 @@ class BnasCells:
                 end+=n+3
             genotypes[type] = genotype_cell
             save_gene(genotype_cell, type, os.path.join(args.experiment_path, args.experiment_name))
+            plot_cell(genotype_cell, type, os.path.join(args.experiment_path, args.experiment_name), epoch='final')
 
 
 class BnasEdges:
@@ -87,9 +109,9 @@ class BnasEdges:
         for i in range(len(sample)):
             self.edges[i].update_score(sample[i], t, score)
     
-    def reduce_space(self, beta=None):
+    def reduce_space(self):
         for edge in self.edges:
-            edge.reduce_space(beta)
+            edge.reduce_space()
     
     def sample(self):
         samples = []
@@ -194,7 +216,7 @@ def max_two(edges, idx):
     max_num_1 = -100
     max_num_2 = -100
     for i, (edge,id) in enumerate(zip(edges, idx)):
-        max_candidate = edge.selection[id]
+        max_candidate = edge.selection[id[0]]
         if max_num_1 < max_candidate:
             max_num_2 = max_num_1
             max_num_1 = max_candidate 
