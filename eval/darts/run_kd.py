@@ -1,5 +1,6 @@
 from ast import arg
 import sys
+
 sys.path.append("/home/hatem/Projects/server/final_repo/final_repo")
 import torch
 import torch.nn as nn
@@ -10,7 +11,7 @@ import os
 from architecture_eval import Network
 from processing import Transformer, DataSets
 from processing.datasets import CityScapes, KittiDataset
-from utilities import train, infer, set_seeds, Clipper, DataPlotter, Tracker, model_info, clean_dir, prepare_ops_metrics, jit_save, onnx_save
+from utilities import train, infer, set_seeds, Clipper, DataPlotter, Tracker, model_info, clean_dir, prepare_ops_metrics, jit_save, onnx_save, layers_state_setter, LR_Scheduler, train_kd, infer_kd
 
 parser  = argparse.ArgumentParser('DARTS')
 parser.add_argument('--data_name', type=str, default='cityscapes')
@@ -39,7 +40,7 @@ parser.add_argument('--seed', type=int, default=4)
 parser.add_argument('--affine', type=int, default=1)
 parser.add_argument('--binary', type=int, default=1)
 parser.add_argument('--last_layer_binary', type=bool,default=True)
-parser.add_argument('--last_layer_kernel_size', type=int, default=True)
+parser.add_argument('--last_layer_kernel_size', type=int, default=3)
 parser.add_argument('--genotype_path', type=str, default='search/darts/experiments/')
 parser.add_argument('--search_exp_name', type=str, default='exp1')
 parser.add_argument('--jit', type=int, default=0)
@@ -54,10 +55,22 @@ parser.add_argument('--onnx', type=int, default=0)
 parser.add_argument('--generate_onnx', type=int, default=0)
 parser.add_argument('--generate_jit', type=int, default=0)
 parser.add_argument('--use_kd', type=int, default=0)
+parser.add_argument('--step_two', type=int, default=30)
+parser.add_argument('--seaborn_style', type=int, default=0)
+parser.add_argument('--use_old_ver', type=int, default=0)
+parser.add_argument('--channel_expansion_ratio_r', type= float, default=2)
+parser.add_argument('--channel_reduction_ratio_u', type=float, default=14)
+parser.add_argument('--channel_normal_ratio_n', type=float, default=0.25)
+parser.add_argument('--poly_scheduler', type=int, default=0)
+parser.add_argument('--lr_auto',type=int, default=1)
+parser.add_argument('--decay_val', type= float, default=0.01)
+parser.add_argument('--decay_step', type=int, default=20)
+parser.add_argument('--binary_aspp', type=int, default=1)
+parser.add_argument('--teacher', type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
-
+assert(args.use_old_ver != args.use_skip)
 
 
 def main():
@@ -67,21 +80,39 @@ def main():
         sys.exit(1)
     #classes_weights = KittiDataset.loss_weights_3 if args.num_of_classes ==3 else KittiDataset.loss_weights_8
     criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, label_smoothing=0.2)
-    criterion = criterion.to(args.device)  
-    t_net = Network(args).to(args.device)
-    s_net = Network(args).to(args.device) 
+    criterion = criterion.to(args.device)
+    # student  
+    net = Network(args).to(args.device) 
+    net._set_criterion(criterion)
+    args.binary=False
+    # teacher
+    args.teacher=1
+    teacher_net = Network(args).to(args.device) 
     net._set_criterion(criterion)
     input_shape = (1, 3, args.image_size, args.image_size)
     model_info(net, input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
     prepare_ops_metrics(net, input_shape)
-    train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'center_crop':{'size':[448,448]},'resize':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
-    val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'center_crop':{'size':[448,448]},'resize':{'size':[args.image_size,args.image_size]}})
+    #train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[448,448]},'center_crop':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
+    #val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[448,448]},'center_crop':{'size':[args.image_size,args.image_size]}})
+    train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
+    val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size,args.image_size]}})
     train_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes, transforms=train_transforms)
-    val_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='val',transforms=val_transforms)
-    train_idx = range(args.train_subset)
-    val_idx = range(args.val_subset) 
-    train_dataset = Subset(train_dataset, [i for i in train_idx])
-    val_dataset = Subset(val_dataset, [i for i in val_idx])
+    if args.data_name == 'cityscapes':
+        val_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='val',transforms=val_transforms)
+        train_idx = range(args.train_subset)
+        val_idx = range(args.val_subset) 
+        train_dataset = Subset(train_dataset, [i for i in train_idx])
+        val_dataset = Subset(val_dataset, [i for i in val_idx])
+        test_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='test',transforms=val_transforms)
+    elif args.data_name == 'kitti':
+        assert  args.train_subset + args.val_subset <= 200   
+        train_idx = range(args.train_subset)
+        val_idx = range(args.train_subset, min(200,args.train_subset+args.val_subset)) 
+        val_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='train',transforms=val_transforms)
+        train_idx = range(args.train_subset)
+        val_idx = range(args.val_subset) 
+        train_dataset = Subset(train_dataset, [i for i in train_idx])
+        val_dataset = Subset(val_dataset, [i for i in val_idx])
     train_loader = torch.utils.data.DataLoader(
                     train_dataset, 
                     batch_size=args.batch_size, pin_memory = True)
@@ -90,26 +121,51 @@ def main():
                     batch_size= args.batch_size, pin_memory = True)
     
     num_of_classes = args.num_of_classes
-    fp_params = [p for p in net.parameters() if not hasattr(p,'bin')]
-    bin_params = [p for p in net.parameters() if hasattr(p,'bin')]
-    optim_args = [[{'params':fp_params, 'weight_decay':args.network_optim_fp_weight_decay,'lr':args.network_optim_fp_lr},{'params':bin_params, 'weight_decay':0,'lr':args.network_optim_bin_lr, 'betas':[args.network_optim_bin_betas, args.network_optim_bin_betas ]}]]
-    #optim_args = [[{'params':fp_params, 'weight_decay':args.network_optim_fp_weight_decay,'lr':args.network_optim_fp_lr},{'params':bin_params, 'weight_decay':0.001,'lr':args.network_optim_bin_lr}]]
-    optimizer = Clipper.get_clipped_optim(args.network_optim, optim_args)
+    if args.lr_auto:
+        lr  = 0.00004*args.batch_size/16
+        params_list = [{'params': net.first_layer.parameters(), 'lr': lr},]
+        params_list.append({'params': net.cells[:-1].parameters(), 'lr': lr})
+        params_list.append({'params': net.cells[-1].parameters(), 'lr': lr*10})
+        if hasattr(net, 'last_layer'):
+            params_list.append({'params': net.last_layer.parameters(), 'lr': lr*10})
+        if hasattr(net, 'binaspp'):
+            params_list.append({'params': net.binaspp.parameters(), 'lr': lr*10})
+        if hasattr(net, 'auxlayer'):
+            params_list.append({'params': net.auxlayer.parameters(), 'lr': lr*10})
+        optimizer = Clipper.get_clipped_optim(args.network_optim, [params_list, lr], {'weight_decay':args.network_optim_fp_weight_decay})
+
+    else:
+        fp_params = [p for p in net.parameters() if not hasattr(p,'bin')]
+        bin_params = [p for p in net.parameters() if hasattr(p,'bin')]
+        optim_args = [[{'params':fp_params, 'weight_decay':args.network_optim_fp_weight_decay,'lr':args.network_optim_fp_lr},{'params':bin_params, 'weight_decay':0,'lr':args.network_optim_bin_lr, 'betas':[args.network_optim_bin_betas, args.network_optim_bin_betas ]}]]
+        #optim_args = [[{'params':fp_params, 'weight_decay':args.network_optim_fp_weight_decay,'lr':args.network_optim_fp_lr},{'params':bin_params, 'weight_decay':0.001,'lr':args.network_optim_bin_lr}]]
+        optimizer = Clipper.get_clipped_optim(args.network_optim, optim_args)
+    teacher_optimizer = torch.optim.Adam([teacher_net.parameters()])
     #optimizer=Clipper.get_clipped_optim('SGD',optim_args)
     #scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step:((step/args.epochs))**2)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[i for i in range(20, args.epochs, 20)], gamma=0.01)
+    if args.poly_scheduler:
+        scheduler= LR_Scheduler(args.epochs,optimizer, len(train_loader))
+    else:
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[i for i in range(20, args.epochs, args.decay_step)], gamma=args.decay_val)
     data = DataPlotter(os.path.join(args.experiment_path, args.experiment_name))
     tracker = Tracker(args.epochs)
     tracker.start()
+    if args.step_two:
+        layers_state_setter(net, input=True, weight=False) # binarized input, fp weights
     for epoch in range(args.epochs):
         # training
-        train_miou, train_loss = train(train_loader, net, criterion, optimizer, num_of_classes)
-        miou, loss= infer(val_loader, net, criterion, num_of_classes=num_of_classes)
-        scheduler.step()
+        train_miou, train_loss = train_kd(train_loader, net,teacher_net , criterion, optimizer, teacher_optimizer, num_of_classes, scheduler=scheduler, epoch=epoch, poly_scheduler=args.poly_scheduler)
+        miou, loss= infer_kd(val_loader, net, criterion, num_of_classes=num_of_classes)
+        if not args.poly_scheduler:
+            scheduler.step()
         tracker.print(train_loss,train_miou, loss, miou, epoch=epoch)
         data.store(epoch, train_loss, loss, train_miou, miou)
-        data.plot(mode='all', save=True, seaborn=False)
+        data.plot(mode='all', save=True, seaborn=args.seaborn_style)
         data.save_as_json()
+        if args.step_two:
+            if epoch == args.step_two:
+                layers_state_setter(net, input=True, weight=True)
+
     tracker.end()
     if args.generate_onnx:
         args.onnx = 1
@@ -123,7 +179,19 @@ def main():
         new_net=Network(args).to(args.device)
         new_net.load_state_dict(net.state_dict())
         jit_save(new_net.eval(),input_shape,os.path.join(args.experiment_path, args.experiment_name))
-  
+    torch.save(net, os.path.join(args.experiment_path, args.experiment_name,'model.pt'))
+    net.eval()
+    if args.data_name == 'cityscapes':
+        test_loader = torch.utils.data.DataLoader(
+                    test_dataset, 
+                    batch_size=1)
+        for i, (img, _, id) in enumerate(test_loader):
+            output = net(img)
+            prediction = torch.argmax(output, 1)
+            DataSets.plot_image_label(img, prediction, id, test_dataset, save=True, save_dir=os.path.join(args.experiment_path, args.experiment_name,'prediction_samples',f'sample_output{id}'))
+            if i == 20:
+                break
+
 if __name__ == '__main__':
     main()
     

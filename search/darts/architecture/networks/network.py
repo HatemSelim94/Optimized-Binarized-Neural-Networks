@@ -104,9 +104,11 @@ class Network(nn.Module):
                     s0, s1 = s1, cell(s0, s1)
                     intermediate_outputs.append(s1.clone()) # clone -> inplace ops protection
             if self.network_type == 'aspp':
-                x = self.binaspp(x)
-            x = self.upsample(s1)
-            x = self.last_layer(x)
+                x = self.binaspp(s1)
+                x = self.last_layer(x)
+            else:
+                x = self.last_layer(s1)
+            x = self.upsample(x)
             return x, intermediate_outputs
         else:
             if self.use_skip:
@@ -119,11 +121,12 @@ class Network(nn.Module):
                     s0, s1 = s1, cell(s0, s1)
             if self.network_type == 'aspp':
                 x = self.binaspp(s1)
-                x = self.upsample(x)
+                x = self.last_layer(x)
             else:
-                x = self.upsample(s1)
-            x = self.last_layer(x)
+                x = self.last_layer(s1)
+            x = self.upsample(x)
             return x
+            
 
     def save_genotype(self, dir=None, epoch=0, nodes=4):
         save_genotype(self.model.alphas,dir, epoch,nodes=nodes,types=self.unique_cells,use_old_ver=self.use_old_ver)

@@ -47,17 +47,18 @@ def model_info(net, input_shape, save=False, dir=None, verbose=True):
     with torch.no_grad():
         gops = ops_counter(net, input_shape)
         max_mem = max_mem_counter(net, input_shape)
-        model_size = value_to_string(params_size_counter(net, input_shape),unit='B')
+        model_size = value_to_string(params_size_counter(net, input_shape),unit='B') # same as model_size_2
+        model_size_2 = value_to_string(sum([sum([p.numel()*32/8 for p in net.parameters() if not hasattr(p, 'bin')]), sum([p.numel()*1/8 for p in net.parameters() if hasattr(p, 'bin')])]), unit='B')
         latency_ms, fps = get_latency(net, input_shape)
     if verbose:
         print('\n Model Info:')
         print(f'     OPS: {gops} x10⁶')
         print(f'     Maximum Memory: {max_mem} MB')
-        print(f'     Model Size: {model_size}')
+        print(f'     Model Size: {model_size_2}')
         print(f'     Latency: {latency_ms} ms')
         print(f'     FPS: {fps}')
     if save:
-        info = {'latency_ms': latency_ms, 'fps':fps, 'GOPS':gops, 'max_mem':max_mem, 'model_size':model_size}
+        info = {'latency_ms': latency_ms, 'fps':fps, 'MOPS':gops, 'max_mem':max_mem, 'model_size':model_size_2}
         os.makedirs(dir, exist_ok=True)
         filename = os.path.join(dir, 'model_info')
         with open(filename+'.json', 'w') as f:
@@ -155,6 +156,60 @@ def train(train_queue, model, criterion, optimizer, num_of_classes=3,device='cud
 
   return round(mean_iou*100, 2),train_loss
 
+def train_kd(train_queue, model, teacher_model, criterion, optimizer, teacher_optimizer, num_of_classes=3,device='cuda', scheduler=None, epoch=None, poly_scheduler=None):
+  metric = SegMetrics(num_of_classes)
+  scheduler = scheduler if poly_scheduler else DummyScheduler()
+  train_loss = 0
+  model.train()
+  for step, (imgs, trgts, _) in enumerate(train_queue):
+    imgs = imgs.to(device)
+    trgts = trgts.to(device, non_blocking = True)
+    if poly_scheduler:
+        scheduler(step, epoch)
+    optimizer.zero_grad()
+    teacher_optimizer.zero_grad()
+    student_output, student_losses = model(imgs)
+    teacher_output, teacher_losses = teacher_model(imgs)
+    torch.use_deterministic_algorithms(False)
+    student_loss = criterion(student_output, trgts)
+    teacher_loss = criterion(teacher_output, trgts)
+    kd_loss = sum([torch.nn.functional.kl_div(teacher_losses[i], student_losses[i]) for i in range(len(student_losses))])
+    total_loss = student_loss + teacher_loss + kd_loss 
+    total_loss.backward()
+    torch.use_deterministic_algorithms(True)
+    optimizer.step() # [-1, 1] (conv)
+    teacher_optimizer.step()
+    train_loss += (student_loss.item()*imgs.shape[0])
+    with torch.no_grad():
+      predictions = torch.softmax(student_output, dim=1)
+      predictions = torch.argmax(predictions, dim=1)
+    metric.update(trgts.cpu().numpy(), predictions.cpu().numpy())
+  mean_iou, _ = metric.get_iou()
+  train_loss /= len(train_queue.dataset)
+
+  return round(mean_iou*100, 2),train_loss
+
+def infer_kd(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
+  metric = SegMetrics(num_of_classes)
+  model.eval()
+  val_loss = 0
+  with torch.no_grad():
+    for i, (imgs, trgts, _ )in enumerate(valid_queue):
+      imgs = imgs.to(device)
+      trgts = trgts.to(device)
+
+      outputs,_ = model(imgs)
+      torch.use_deterministic_algorithms(False)
+      loss = criterion(outputs, trgts)
+      torch.use_deterministic_algorithms(True)
+      outputs = torch.softmax(outputs, dim=1)
+      predicted = torch.argmax(outputs, dim=1)
+      val_loss += (loss.item() * imgs.shape[0])
+      metric.update(trgts.cpu().numpy(), predicted.cpu().numpy())
+    miou, _ = metric.get_iou()
+      #if step % args.report_freq == 0:
+    val_loss /= len(valid_queue.dataset)
+    return round(miou*100, 2), val_loss
 
 def infer(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
   metric = SegMetrics(num_of_classes)

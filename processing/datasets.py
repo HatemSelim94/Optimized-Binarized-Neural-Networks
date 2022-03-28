@@ -277,13 +277,13 @@ class DataSets:
             return CityScapes(transforms=transforms, no_of_classes=no_of_classes, split=split, mode = mode, save_annotation=save_annotation)
     
     @staticmethod
-    def plot_image_label(processed_image, pred, id, dataset, miou = None, show=True, show_titles= True,save=False, save_dir= None, dpi=1080):
+    def plot_image_label(pred, id, dataset, miou = None, show=True,transforms= ToTensor(), show_titles= True,save=False, save_dir= None, dpi=1080):
         if dataset.name == 'kitti':
-            orig_dataset =  KittiDataset(transforms=ToTensor(), no_of_classes=dataset.no_of_classes)
+            orig_dataset =  KittiDataset(transforms=transforms, no_of_classes=dataset.no_of_classes)
         else:
-            orig_dataset = CityScapes(transforms= ToTensor(), mode=dataset.mode, split=dataset.split, no_of_classes=dataset.no_of_classes)
+            orig_dataset = CityScapes(transforms=transforms, mode=dataset.mode, split=dataset.split, no_of_classes=dataset.no_of_classes)
         orig_img, label, _ = orig_dataset[id]
-        fig,ax = plt.subplots(1,4, sharex='all', sharey='all')
+        fig,ax = plt.subplots(1,3, sharex='all', sharey='all')
         ax[0].imshow(orig_img.permute(1,2,0))
         if show_titles:
             ax[0].set_title('Image')
@@ -292,28 +292,32 @@ class DataSets:
         if show_titles:
             ax[1].set_title('Label')
         ax[1].axis('off')
-        ax[2].imshow(processed_image.permute(1,2,0))
-        if show_titles:
-            ax[2].set_title('Processed Image')
-        ax[2].axis('off')
-        ax[3].imshow(decode_segmap(pred, dataset.no_of_classes))
+        #ax[2].imshow(processed_image.permute(1,2,0))
+        #if show_titles:
+        #    ax[2].set_title('Processed Image')
+        #ax[2].axis('off')
+        ax[2].imshow(decode_segmap(pred, dataset.no_of_classes))
         if show_titles:
             if miou is not None:
-                ax[3].set_title(f'Prediction\n MIoU:{miou}')
+                ax[2].set_title(f'Prediction\n MIoU:{miou}')
             else:
-                ax[3].set_title('Prediction')
-        ax[3].axis('off')
+                ax[2].set_title('Prediction')
+        ax[2].axis('off')
         fig.subplots_adjust(wspace=0.05, hspace=0)
         
         if save:
             assert save_dir is not None
-            assert dpi >= 0 
+            assert dpi >= 0
+            if not os.path.exists(save_dir):
+                os.makedirs(save_dir) 
             plt.draw()
-            plt.savefig(save_dir+'_plot.png', dpi = 1080)
+            plt.savefig(os.path.join(save_dir,'_plot.png'), dpi = 1080)
 
         if show:
             plt.show()
         
+        plt.clf()
+        plt.close('all')
 
         
 

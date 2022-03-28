@@ -96,8 +96,8 @@ class SampledNetwork(nn.Module):
         for cell in self.cells:
             s0, s1 = s1, cell(s0, s1, idx=self.bnas_idx[cell.cell_type])
         if self.network_type == 'aspp':
-                x = self.binaspp(s1)
-                x = self.last_layer(x)
+            x = self.binaspp(s1)
+            x = self.last_layer(x)
         else:
             x = self.last_layer(s1)
         x = self.upsample(x)

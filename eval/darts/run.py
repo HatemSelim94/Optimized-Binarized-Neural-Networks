@@ -65,6 +65,7 @@ parser.add_argument('--lr_auto',type=int, default=1)
 parser.add_argument('--decay_val', type= float, default=0.01)
 parser.add_argument('--decay_step', type=int, default=20)
 parser.add_argument('--binary_aspp', type=int, default=1)
+parser.add_argument('--teacher', type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -88,13 +89,14 @@ def main():
     #val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[448,448]},'center_crop':{'size':[args.image_size,args.image_size]}})
     train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
     val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size,args.image_size]}})
+    plot_transforms = Transformer.get_transforms({'resize':{'size':[args.image_size,args.image_size]}})
     train_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes, transforms=train_transforms)
     if args.data_name == 'cityscapes':
         val_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='val',transforms=val_transforms)
         train_idx = range(args.train_subset)
         val_idx = range(args.val_subset) 
-        train_dataset = Subset(train_dataset, [i for i in train_idx])
-        val_dataset = Subset(val_dataset, [i for i in val_idx])
+        sub_train_dataset = Subset(train_dataset, [i for i in train_idx])
+        sub_val_dataset = Subset(val_dataset, [i for i in val_idx])
     elif args.data_name == 'kitti':
         assert  args.train_subset + args.val_subset <= 200   
         train_idx = range(args.train_subset)
@@ -102,13 +104,13 @@ def main():
         val_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='train',transforms=val_transforms)
         train_idx = range(args.train_subset)
         val_idx = range(args.val_subset) 
-        train_dataset = Subset(train_dataset, [i for i in train_idx])
-        val_dataset = Subset(val_dataset, [i for i in val_idx])
+        sub_train_dataset = Subset(train_dataset, [i for i in train_idx])
+        sub_val_dataset = Subset(val_dataset, [i for i in val_idx])
     train_loader = torch.utils.data.DataLoader(
-                    train_dataset, 
+                    sub_train_dataset, 
                     batch_size=args.batch_size, pin_memory = True)
     val_loader = torch.utils.data.DataLoader(
-                    val_dataset, 
+                    sub_val_dataset, 
                     batch_size= args.batch_size, pin_memory = True)
     
     num_of_classes = args.num_of_classes
@@ -170,6 +172,19 @@ def main():
         new_net.load_state_dict(net.state_dict())
         jit_save(new_net.eval(),input_shape,os.path.join(args.experiment_path, args.experiment_name))
     torch.save(net, os.path.join(args.experiment_path, args.experiment_name,'model.pt'))
+    net.eval()
+    if args.data_name == 'cityscapes':
+        test_loader = torch.utils.data.DataLoader(
+                    val_dataset, 
+                    batch_size=1)
+        for i, (img, label, id) in enumerate(test_loader):
+            img = img.cuda()
+            output = net(img)
+            prediction = torch.argmax(output, 1)
+            DataSets.plot_image_label(prediction.cpu().squeeze(dim=0), id, val_dataset, transforms=plot_transforms,show_titles=False,show=False ,save=True, save_dir=os.path.join(args.experiment_path, args.experiment_name,'prediction_samples',f'sample_output_{id.item()}'))
+            if i == 20:
+                break
+
 if __name__ == '__main__':
     main()
     

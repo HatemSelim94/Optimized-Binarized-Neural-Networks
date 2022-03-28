@@ -84,9 +84,7 @@ class Network(nn.Module):
                     scale /=2
             last_layer_ch = c_prev
         elif self.network_type == 'aspp':
-            scale = 4
-            last_layer_ch = 64
-            self.binaspp = BinASPP(c_prev, 64, self.padding_mode, self.jit, self.dropout2d, rates=[4,8,12,18], binarization =self.binarization)
+            self.binaspp = BinASPP(c_prev, c_prev, self.padding_mode, self.jit, self.dropout2d, rates=[4,8,12,18], binarization =self.binarization)
         self.upsample = Bilinear(scale_factor=scale)
         # last layer (default:bin)
         self.last_layer = LastLayer(last_layer_ch, classes_num=args.num_of_classes,affine=self.affine, binary=args.last_layer_binary, kernel_size=args.last_layer_kernel_size,jit=args.jit, binarization=self.binarization) #no activation
@@ -98,12 +96,13 @@ class Network(nn.Module):
         for cell in self.cells:
             s0, s1 = s1, cell(s0, s1,training_idx[cell.cell_type])
         if self.network_type == 'aspp':
-                x = self.binaspp(s1)
-                x = self.upsample(x)
+            x = self.binaspp(s1)
+            x = self.last_layer(x)
         else:
-            x = self.upsample(s1)
-        x = self.last_layer(x)
+            x = self.last_layer(s1)
+        x = self.upsample(x)
         return x
+        
 
     def save_genotype(self, dir=None, epoch=0, nodes=4):
         save_genotype(self.model.alphas,dir, epoch,nodes=nodes,types=self.unique_cells,use_old_ver=self.use_old_ver)

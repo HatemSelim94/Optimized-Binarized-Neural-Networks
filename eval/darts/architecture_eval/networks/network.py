@@ -25,7 +25,7 @@ class Network(nn.Module):
         self.initial_channels = args.stem_channels
         self.genotype_path = args.genotype_path
         self.use_old_ver = args.use_old_ver
-        self.genotypes = self.load_genotype(os.path.join(self.genotype_path, args.search_exp_name))
+        self.genotypes = self.load_genotype(os.path.join(self.genotype_path, args.search_exp_name),args.teacher)
         self.jit = args.jit
         self.onnx = args.onnx
         self.network_type = args.network_type
@@ -124,12 +124,18 @@ class Network(nn.Module):
             x = self.upsample(x)
             return x
 
-    def load_genotype(self, dir=None):
+    def load_genotype(self, dir=None,teacher=False):
         indices = {}
-        if self.use_old_ver:
-            genotype_folder_generic = 'darts_relaxed_cell_'
-        else:    
-            genotype_folder_generic = 'darts_relaxed_cell_modified_'
+        if teacher:
+            if self.use_old_ver:
+                genotype_folder_generic = 'teacher_darts_relaxed_cell_'
+            else:    
+                genotype_folder_generic = 'teacher_darts_relaxed_cell_modified_'
+        else:
+            if self.use_old_ver:
+                genotype_folder_generic = 'darts_relaxed_cell_'
+            else:    
+                genotype_folder_generic = 'darts_relaxed_cell_modified_'
 
         for i, cell_type in enumerate(self.unique_cells):
             genotype_folder = genotype_folder_generic+cell_type
