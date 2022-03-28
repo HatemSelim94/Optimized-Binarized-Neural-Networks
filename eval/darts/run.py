@@ -169,7 +169,7 @@ def main():
         new_net=Network(args).to(args.device)
         new_net.load_state_dict(net.state_dict())
         jit_save(new_net.eval(),input_shape,os.path.join(args.experiment_path, args.experiment_name))
-  
+    torch.save(net, os.path.join(args.experiment_path, args.experiment_name,'model.pt'))
 if __name__ == '__main__':
     main()
     
