@@ -388,9 +388,6 @@ class BinASPP(nn.Module):
                     recurs(mod, state)
         recurs(self, state)      
 
-if __name__ == '__main__':
-    c = NCell(20, 10, 20, 1, 'r')
-
   
 
             

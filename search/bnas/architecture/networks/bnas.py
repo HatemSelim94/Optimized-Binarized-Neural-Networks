@@ -211,6 +211,7 @@ def in_range(num, min_limit=0, max_limit=2):
     return min(max(num, min_limit), max_limit)
 
 def max_two(edges, idx):
+    #print(idx)
     ops  = [0, 0 ]
     states = [0, 0]
     max_num_1 = -100
@@ -221,13 +222,13 @@ def max_two(edges, idx):
             max_num_2 = max_num_1
             max_num_1 = max_candidate 
             ops[-1] = ops[0]
-            ops[0] = id
+            ops[0] = id[0]
             states[-1] = states[0]
             states[0] = i
         elif max_num_2 < max_candidate:
             max_num_2 = max_candidate
             states[-1] = i
-            ops[-1] = id
+            ops[-1] = id[0]
     return tuple(ops), states
 
 def save_gene(genotype, type, dir, epoch='final'):
