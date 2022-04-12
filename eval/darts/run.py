@@ -1,4 +1,3 @@
-from ast import arg
 import sys
 sys.path.append("/home/hatem/Projects/server/final_repo/final_repo")
 import torch
@@ -65,6 +64,7 @@ parser.add_argument('--lr_auto',type=int, default=1)
 parser.add_argument('--decay_val', type= float, default=0.01)
 parser.add_argument('--decay_step', type=int, default=20)
 parser.add_argument('--binary_aspp', type=int, default=1)
+parser.add_argument('--use_weights', type=int, default=0)
 parser.add_argument('--teacher', type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
@@ -77,8 +77,9 @@ def main():
     clean_dir(args)
     if not torch.cuda.is_available():
         sys.exit(1)
-    #classes_weights = KittiDataset.loss_weights_3 if args.num_of_classes ==3 else KittiDataset.loss_weights_8
-    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, label_smoothing=0.2)
+    classes_weights = KittiDataset.loss_weights_3 if args.num_of_classes ==3 else KittiDataset.loss_weights_8
+    classes_weights = classes_weights.cuda() if args.use_weights else None
+    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index,weight=classes_weights, label_smoothing=0.2)
     criterion = criterion.to(args.device)  
     net = Network(args).to(args.device) 
     net._set_criterion(criterion)
@@ -163,27 +164,29 @@ def main():
         args.onnx = 1
         input_shape = (1, 3, 376, 672)
         new_net=Network(args).to(args.device)
-        new_net.load_state_dict(net.state_dict())
+        new_net.load_state_dict(net.state_dict(), strict=False)
         onnx_save(new_net.eval(), input_shape,os.path.join(args.experiment_path, args.experiment_name))
     if args.generate_jit:
         args.jit= 1
         input_shape = (1, 3, 376, 672)
         new_net=Network(args).to(args.device)
-        new_net.load_state_dict(net.state_dict())
+        new_net.load_state_dict(net.state_dict(), strict=False)
         jit_save(new_net.eval(),input_shape,os.path.join(args.experiment_path, args.experiment_name))
     torch.save(net, os.path.join(args.experiment_path, args.experiment_name,'model.pt'))
     net.eval()
-    if args.data_name == 'cityscapes':
-        test_loader = torch.utils.data.DataLoader(
-                    val_dataset, 
-                    batch_size=1)
-        for i, (img, label, id) in enumerate(test_loader):
-            img = img.cuda()
-            output = net(img)
-            prediction = torch.argmax(output, 1)
-            DataSets.plot_image_label(prediction.cpu().squeeze(dim=0), id, val_dataset, transforms=plot_transforms,show_titles=False,show=False ,save=True, save_dir=os.path.join(args.experiment_path, args.experiment_name,'prediction_samples',f'sample_output_{id.item()}'))
-            if i == 20:
-                break
+    test_loader = torch.utils.data.DataLoader(
+                val_dataset, 
+                batch_size=1)
+    for i, (img, label, id) in enumerate(test_loader):
+        
+        if i >20 and i < 300:
+            continue
+        img = img.cuda()
+        output = net(img)
+        prediction = torch.argmax(output, 1)
+        DataSets.plot_image_label(prediction.cpu().squeeze(dim=0), id, val_dataset, transforms=plot_transforms,show_titles=False,show=False ,save=True, save_dir=os.path.join(args.experiment_path, args.experiment_name,'prediction_samples'), plot_name= f'sample_output_{id.item()}')
+        if i == 330:
+            break
 
 if __name__ == '__main__':
     main()

@@ -37,7 +37,7 @@ class KittiDataset(Dataset):
             . Defaults to None.
             download (bool, optional): download tha dataset. Defaults to False.
         """
-        assert no_of_classes == 3 or no_of_classes == 8 or no_of_classes == 19 or no_of_classes == 34
+        assert no_of_classes == 3 or no_of_classes == 8 or no_of_classes == 20 or no_of_classes == 34
         self.dataset_path = dataset_path
         self.transforms = transforms
         self.no_of_classes = no_of_classes
@@ -107,7 +107,7 @@ class KittiDataset(Dataset):
         elif self.no_of_classes == 8: 
             for id, category_id in self.Id2CategoryID.items():
                 label[label==id] = category_id
-        elif self.no_of_classes == 19:
+        elif self.no_of_classes == 20:
             for id, train_id in self.Id2TrainID.items():
                 label[label==id] = train_id
         return label.astype(np.uint8) # range 0-255
@@ -119,7 +119,7 @@ class KittiDataset(Dataset):
                 labels_dict = self.Id2CustomID
             elif self.no_of_classes == 8:
                 labels_dict = self.Id2CategoryID
-            elif self.no_of_classes == 19:
+            elif self.no_of_classes == 20:
                 labels_dict = self.Id2TrainID
             else:
                 raise NotImplementedError
@@ -161,9 +161,9 @@ class CityScapes(Dataset):
         Args:
             mode (str): fine or coarse
             split (str): train, val, or test
-            no_of_classe int: 3, 8, or 19
+            no_of_classe int: 3, 8, or 20
         """
-        assert no_of_classes == 3 or no_of_classes == 8 or no_of_classes == 19 or no_of_classes == 34
+        assert no_of_classes == 3 or no_of_classes == 8 or no_of_classes == 20 or no_of_classes == 34
         assert split == 'train' or split == 'val' or split == 'test'
         assert mode == 'fine' or mode == 'coarse'
 
@@ -229,7 +229,7 @@ class CityScapes(Dataset):
         elif self.no_of_classes == 8: 
             for id, category_id in self.Id2CategoryID.items():
                 label[label==id] = category_id
-        elif self.no_of_classes == 19:
+        elif self.no_of_classes == 20:
             for id, train_id in self.Id2TrainID.items():
                 label[label==id] = train_id
         return label.astype(np.uint8) # range 0-255
@@ -247,7 +247,7 @@ class CityScapes(Dataset):
                 labels_dict = self.Id2CustomID
             elif self.no_of_classes == 8:
                 labels_dict = self.Id2CategoryID
-            elif self.no_of_classes == 19:
+            elif self.no_of_classes == 20:
                 labels_dict = self.Id2TrainID
             else:
                 raise NotImplementedError
@@ -277,7 +277,7 @@ class DataSets:
             return CityScapes(transforms=transforms, no_of_classes=no_of_classes, split=split, mode = mode, save_annotation=save_annotation)
     
     @staticmethod
-    def plot_image_label(pred, id, dataset, miou = None, show=True,transforms= ToTensor(), show_titles= True,save=False, save_dir= None, dpi=1080):
+    def plot_image_label(pred, id, dataset, miou = None, show=True,transforms= ToTensor(), show_titles= True,save=False, save_dir= None, dpi=1080, plot_name=None):
         if dataset.name == 'kitti':
             orig_dataset =  KittiDataset(transforms=transforms, no_of_classes=dataset.no_of_classes)
         else:
@@ -311,7 +311,7 @@ class DataSets:
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir) 
             plt.draw()
-            plt.savefig(os.path.join(save_dir,'_plot.png'), dpi = 1080)
+            plt.savefig(os.path.join(save_dir,plot_name+'_plot.png'), dpi = 1080)
 
         if show:
             plt.show()

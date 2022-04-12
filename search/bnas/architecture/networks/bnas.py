@@ -90,7 +90,7 @@ class Bnas:
                 end+=n+3
             genotypes[type] = genotype_cell
             save_gene(genotype_cell, type, os.path.join(args.experiment_path, args.experiment_name))
-            plot_cell(genotype_cell, type, os.path.join(args.experiment_path, args.experiment_name), epoch='final')
+            plot_cell(genotype_cell, type, os.path.join(args.experiment_path, args.experiment_name),nodes=self.nodes_no, epoch='final')
 
 
 class BnasEdges:

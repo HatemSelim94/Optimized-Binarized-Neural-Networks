@@ -41,7 +41,7 @@ class Network(nn.Module):
         else:
             self.alphas = [torch.empty((self.nodes_num*self.edge_num ,self.ops_num), requires_grad=True, device=args.device) for _ in range(self.unique_cells_len)]
         for i in range(self.unique_cells_len):
-            nn.init.constant_(self.alphas[i], 1/self.ops_num)
+            nn.init.constant_(self.alphas[i], 1/self.ops_num * 1e-2)
                 # first layer (fp)
         self.first_layer = Stem(out_channels=self.initial_channels, affine=self.affine, activation=self.first_layer_activation)
         # cells
@@ -147,6 +147,7 @@ class Stem(nn.Module):
         activation_func = {'htanh':nn.Tanh, 'relu': nn.ReLU}
         self.layers = nn.Sequential()
         self.layers.add_module('stem_conv', nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, bias=False, padding=1, stride=2))
+        #self.layers.add_module('max_pool', nn.MaxPool2d(3,stride=2, padding=1))
         if activation =='relu':
             self.layers.add_module('stem_activation', activation_func[activation]())
         self.layers.add_module('stem_bn', nn.BatchNorm2d(out_channels, affine=affine))

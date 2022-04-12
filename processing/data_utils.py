@@ -36,8 +36,8 @@ def show_sample(images, smnts):
 
 # https://www.programmersought.com/article/23915498478/
 def decode_segmap(image, no_of_classes=34):
-    modes = {'default':34, 'train':19, 'category':8, 'custom':3} # for readability
-    assert no_of_classes == 3 or no_of_classes == 8 or no_of_classes == 19 or no_of_classes == 34
+    modes = {'default':34, 'train':20, 'category':8, 'custom':3} # for readability
+    assert no_of_classes == 3 or no_of_classes == 8 or no_of_classes == 20 or no_of_classes == 34
     r = torch.zeros_like(image, dtype=torch.uint8)
     g = torch.zeros_like(image, dtype=torch.uint8)
     b = torch.zeros_like(image, dtype=torch.uint8)

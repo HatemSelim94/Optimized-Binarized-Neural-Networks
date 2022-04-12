@@ -505,7 +505,7 @@ class LastLayer(nn.Module):
 
 
 class Pooling(nn.Module):
-    def __init__(self, in_channels, out_channels,padding_mode,jit=False, dropout2d=0.0, binarization=1):
+    def __init__(self, in_channels, out_channels,padding_mode='zeros',jit=False, dropout2d=0.0, binarization=1):
         super(Pooling,self).__init__()
         self.adaptive_pooling = nn.AdaptiveAvgPool2d(1)
         self.conv1= BasicBinConv1x1(in_channels, out_channels,1,padding_mode=padding_mode ,jit=jit, binarization=binarization)
@@ -520,6 +520,21 @@ class Pooling(nn.Module):
         x = self.batchnorm(x)
         return x
 
+
+class FastDecoder(nn.Module):
+    def __init__(self, in_channels, jit,binarization ,activation):
+        super(FastDecoder, self).__init__()
+        self.layers = nn.ModuleList()
+        self.layers.append(Pooling(in_channels, in_channels, jit=jit,binarization=binarization))
+        self.layers.append(BinDilConv3x3(in_channels, in_channels, kernel_size=3, dilation=8, padding=8, jit=jit, activation=activation, binarization=binarization))
+        self.layers.append(BinDilConv3x3(in_channels, in_channels, kernel_size=3, dilation=16, padding=16,activation=activation, jit=jit,binarization=binarization))
+        self.layers.append(BinDilConv3x3(in_channels, in_channels, kernel_size=3, dilation=24, padding=24, activation=activation,jit=jit,binarization=binarization))
+        self.layers.append(BinConv1x1(in_channels, in_channels,jit=jit, binarization=binarization, activation=activation))
+        self.cat = EvalCat()
+    
+    def forward(self, x):
+        output = self.cat([op(x) for op in self.layers])
+        return output
 
 
 class BinASPP(nn.Module):

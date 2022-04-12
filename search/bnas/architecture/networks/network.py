@@ -19,7 +19,6 @@ from .bnas import Bnas
 class Network(nn.Module):
     def __init__(self, args):
         super(Network, self).__init__()
-        self.bnas = Bnas()
         self.args = args
         self.binary=args.binary
         self.affine = args.affine
@@ -47,6 +46,7 @@ class Network(nn.Module):
         for i in range(self.unique_cells_len):
             nn.init.constant_(self.alphas[i], 1/self.ops_num)
                 # first layer (fp)
+        self.bnas = Bnas(nodes=args.nodes_num, t=args.arch_t_epochs, edges=self.total_edge_num, unique_cell_types=self.unique_cells)
         self.first_layer = Stem(out_channels=self.initial_channels, affine=self.affine, activation=self.first_layer_activation)
         # cells
         self.cells = nn.ModuleList()

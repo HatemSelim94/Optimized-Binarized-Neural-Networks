@@ -8,8 +8,8 @@ class Network(nn.Module):
         super(Network, self).__init__()
         self.layers = torchvision.models.segmentation.deeplabv3_resnet50(pretrained=False, progress=False, num_classes=args.num_of_classes)
     def forward(self, x):
-        return self.layers(x)
-
+        result=self.layers(x)
+        return result["out"]
 if __name__ == '__main__':
     n = Network()
     u=torch.randn((1,3,4,4))

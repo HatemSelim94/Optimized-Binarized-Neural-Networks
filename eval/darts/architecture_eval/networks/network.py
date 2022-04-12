@@ -159,6 +159,7 @@ class Stem(nn.Module):
         activation_func = {'htanh':nn.Tanh, 'relu': nn.ReLU}
         self.layers = nn.Sequential()
         self.layers.add_module('stem_conv', nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, bias=False, padding=1, stride=2))
+        #self.layers.add_module('max_pool', nn.MaxPool2d(3,stride=2, padding=1))
         if activation =='relu':
             self.layers.add_module('stem_activation', activation_func[activation]())
         self.layers.add_module('stem_bn', nn.BatchNorm2d(out_channels, affine=affine))
