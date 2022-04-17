@@ -104,17 +104,17 @@ def train_arch_kd(model_dataloader, arch_dataloader, arch_kd, criterion, optimiz
             outputs, int_outputs_list = arch_kd.model(imgs)
             t_outputs, t_int_outputs_list = arch_kd.teacher_model(imgs)
             #print(len(int_outputs_list), len(t_int_outputs_list))
-            int_total_loss = 0
-            for int_outputs, t_int_outputs in zip(int_outputs_list, t_int_outputs_list):
-                int_total_loss += loss_func(int_outputs, t_int_outputs)
+            #int_total_loss = 0
+            #for int_outputs, t_int_outputs in zip(int_outputs_list, t_int_outputs_list):
+            #    int_total_loss += loss_func(int_outputs, t_int_outputs)
             torch.use_deterministic_algorithms(False)
             loss = criterion(outputs, trgts) # mean
             t_loss = criterion(t_outputs, trgts)
             teacher_loss += t_loss.item()
             student_loss += loss.item()
-            if step% 10 == 0:
-                print(f'Batch {step}: KD loss {int_total_loss.item():.2f} Teacher loss {teacher_loss/(step+1):0.3f} Student loss {student_loss/(step+1):0.3f}')
-            total_loss = loss +t_loss+ int_total_loss
+            #if step% 10 == 0:
+            #    print(f'Batch {step}: KD loss {int_total_loss.item():.2f} Teacher loss {teacher_loss/(step+1):0.3f} Student loss {student_loss/(step+1):0.3f}')
+            total_loss = loss +t_loss
             total_loss.backward()
             torch.use_deterministic_algorithms(True)
             optimizer.step() # [-1, 1] (conv)

@@ -12,8 +12,8 @@ python eval/darts/run.py --data_name 'kitti' \
 --epochs 100 --network_optim 'Adam' --network_optim_bin_lr 1e-2 --network_optim_fp_lr 1e-4 \
 --network_optim_fp_weight_decay 5e-4 --network_optim_bin_betas 0.9 --network_sequence 'r,r,r,n,n,u' \
 --stem_channels 60 --nodes_num 4 --edge_num 2 \
---experiment_path 'eval/darts/experiments/' --experiment_name 'darts_full_3c_final_2_binary_long_kitti_7' --device 'cuda' \
---seed 4 --affine 1 --binary 1 --last_layer_binary 1 --last_layer_kernel_size 3 \
+--experiment_path 'eval/darts/experiments/' --experiment_name 'darts_full_3c_final_2_binary_long_kitti_diff_seed' --device 'cuda' \
+--seed 10 --affine 1 --binary 1 --last_layer_binary 1 --last_layer_kernel_size 3 \
 --genotype_path 'search/darts/experiments/' --search_exp_name 'final_darts_full_3c_2' --generate_jit 1 --generate_onnx 1 \
 --padding_mode 'zeros' --dropout2d_prob 0.01 --network_type 'cells' --binarization 1 --use_skip 0 \
 --activation 'htanh' --first_layer_activation 'htanh' --step_two 0 --seaborn_style 0 --use_old_ver 1 \
@@ -22,6 +22,6 @@ python eval/darts/run.py --data_name 'kitti' \
 --load_model 0 --load_experiment_name 'darts_full_3c_final_2_binary_long'
 
 exp_path='eval/darts/experiments/'
-exp_name='darts_full_3c_final_2_binary_long_kitti_7'
+exp_name='darts_full_3c_final_2_binary_long_kitti_diff_seed'
 exp_path+=$exp_name
 cp run_darts_eval.bash $exp_path
