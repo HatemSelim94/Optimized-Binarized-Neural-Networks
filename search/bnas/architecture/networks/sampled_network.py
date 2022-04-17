@@ -119,7 +119,7 @@ class SampledNetwork(nn.Module):
 class Stem(nn.Module):
     def __init__(self, out_channels=64, in_channels = 3, kernel_size=3, layers_num = 1, affine=True, activation='tanh'):
         super(Stem, self).__init__()
-        activation_func = {'htanh':nn.Tanh, 'relu': nn.ReLU}
+        activation_func = {'htanh':nn.Hardtanh, 'relu': nn.ReLU}
         self.layers = nn.Sequential()
         self.layers.add_module('stem_conv', nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, bias=False, padding=1, stride=2))
         if activation =='relu':
