@@ -9,7 +9,7 @@ class Binarization1(Function): # Courbariaux, Hubara
     def forward(ctx, input):
         ctx.save_for_backward(input)
         output = torch.ones_like(input)
-        output[input < 0] = -1
+        output[input <= 0] = -1
         return output
 
     @staticmethod
@@ -34,9 +34,10 @@ class Binarization1(Function): # Courbariaux, Hubara
         #output = g.op('Where', condition2, neg_one, pos)
         #return output
         # or 
-        one = g.op('Constant', value_t=torch.tensor(1, dtype=torch.float))
+        #one = g.op('Constant', value_t=torch.tensor(1, dtype=torch.float))
+        neg_one = g.op('Constant', value_t=torch.tensor(-1, dtype=torch.float))
         sign = g.op('Sign', input)
-        output = g.op('Where', g.op('Equal', input, zero), one, sign)
+        output = g.op('Where', g.op('Equal', input, zero), neg_one, sign)
         return output
 
 
@@ -46,7 +47,7 @@ class Binarization2(Function): # structured/reactnet
     def forward(ctx, input):
         ctx.save_for_backward(input)
         output = torch.ones_like(input)
-        output[input < 0] = -1
+        output[input <= 0] = -1
         return output
 
     @staticmethod

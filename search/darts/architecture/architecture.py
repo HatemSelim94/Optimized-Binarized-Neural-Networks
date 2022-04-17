@@ -76,8 +76,9 @@ class ArchitectureKD:
         #return loss * arch_inputs.shape[0]
     
     def _backward_step(self, arch_inputs, arch_targets):
+        t_inputs = arch_inputs.clone()
         st_output, st_cell_outputs = self.model(arch_inputs)
-        t_output, t_cell_outputs = self.teacher_model(arch_inputs)
+        t_output, t_cell_outputs = self.teacher_model(t_inputs)
         torch.use_deterministic_algorithms(False) 
         st_loss = self.criterion(st_output, arch_targets)
         t_loss = self.criterion(t_output, arch_targets)
@@ -110,4 +111,5 @@ def kd_loss_func(input, target):
     #print(input.shape, target.shape)
     cos_sim_loss_func = torch.nn.CosineSimilarity()
     mse_loss_func = torch.nn.MSELoss()
-    return 1-cos_sim_loss_func(input, target).mean() + mse_loss_func(input, target)
+    #return 1-cos_sim_loss_func(input, target).mean() + mse_loss_func(input, target)
+    return mse_loss_func(input, target)

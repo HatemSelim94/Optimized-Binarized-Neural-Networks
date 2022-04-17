@@ -525,7 +525,7 @@ def jit_save(model, input_shape, dir,device='cuda'):
 def onnx_save(model, input_shape, dir,device='cuda',opset=11):
     dummy_input = torch.randn(input_shape).to(device)
     torch.onnx.export(model, dummy_input, 
-                    os.path.join(dir,'onnx_model.pt'), input_names=['input'],output_names=['output'], export_params=True,verbose=False, opset_version=opset)
+                    os.path.join(dir,'onnx_model.onnx'), input_names=['input'],output_names=['output'], export_params=True,verbose=False, opset_version=opset)
 
 
 def layers_state_setter(net,input=True, weight=True):
