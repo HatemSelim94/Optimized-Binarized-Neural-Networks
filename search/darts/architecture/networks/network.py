@@ -42,6 +42,7 @@ class Network(nn.Module):
             self.alphas = [torch.empty((self.nodes_num*self.edge_num ,self.ops_num), requires_grad=True, device=args.device) for _ in range(self.unique_cells_len)]
         for i in range(self.unique_cells_len):
             nn.init.constant_(self.alphas[i], 1/self.ops_num * 1e-2)
+            #nn.init.normal_(self.alphas[i])
                 # first layer (fp)
         self.first_layer = Stem(out_channels=self.initial_channels, affine=self.affine, activation=self.first_layer_activation)
         # cells
