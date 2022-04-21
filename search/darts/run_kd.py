@@ -96,7 +96,7 @@ def main():
     args.teacher = 1
     teacher_net = Network(args).to(args.device)
     teacher_net._set_criterion(criterion)
-    print(f'Is binary? {teacher_net.binary}')
+    print(f'Is binary(teacher)? {teacher_net.binary}')
     input_shape = (1,3, args.image_size, args.image_size)
     model_info(net,input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True, kd=True)
     prepare_ops_metrics(net, input_shape)

@@ -84,7 +84,8 @@ class ArchitectureKD:
         t_loss = self.criterion(t_output, arch_targets)
         ops_loss, params_loss, latency_loss = self.get_losses()
         st_total_loss = self.beta*ops_loss**2 + self.gamma* params_loss**2 + self.delta* latency_loss**2 + st_loss
-        total_loss = st_total_loss + t_loss + sum([kd_loss_func(st_cell_output, t_cell_output) for t_cell_output,st_cell_output in zip(t_cell_outputs,st_cell_outputs)])
+        #total_loss = st_total_loss + t_loss + sum([kd_loss_func(st_cell_output, t_cell_output) for t_cell_output,st_cell_output in zip(t_cell_outputs,st_cell_outputs)])
+        total_loss = st_total_loss + t_loss
         total_loss.backward()
         torch.use_deterministic_algorithms(True)
         #return loss.item()
