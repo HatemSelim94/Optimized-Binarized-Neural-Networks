@@ -20,3 +20,5 @@
   * Structured Binary Neural Networks for Accurate Image Classification and Semantic Segmentation. ([SBNN](https://bitbucket.org/jingruixiaozhuang/group-net-semantic-segmentation/src/master/))
   * [Flops Counter](https://github.com/sovrasov/flops-counter.pytorch)
   * [Segmenation metrics](https://github.com/VainF/DeepLabV3Plus-Pytorch/blob/master/metrics/stream_metrics.py)
+  * [ENet](https://github.com/osmr/imgclsmob)
+  * [DAPNet](https://github.com/Reagan1311/DABNet)

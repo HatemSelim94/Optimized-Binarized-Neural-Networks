@@ -86,7 +86,7 @@ def main():
     if not torch.cuda.is_available():
         sys.exit(1)
     weights = KittiDataset.loss_weights_3.cuda() if args.num_of_classes ==3 else KittiDataset.loss_weights_8.cuda() 
-    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, weight=weights, label_smoothing=0.2)
+    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, weight=weights)
     criterion = criterion.to(args.device)  
     args.use_kd = 1 
     net = Network(args).to(args.device)

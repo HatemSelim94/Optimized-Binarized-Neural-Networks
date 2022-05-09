@@ -22,10 +22,11 @@ class Architecture:
         #return loss * arch_inputs.shape[0]
     
     def _backward_step(self, arch_inputs, arch_targets):
-        loss = self.model._loss(arch_inputs, arch_targets)
+        loss = self.model._loss(arch_inputs, arch_targets).mean()
         ops_loss, params_loss, latency_loss = self.get_losses()
         #print(ops_loss, params_loss, latency_loss)
         total_loss = self.beta*ops_loss + self.gamma* params_loss + self.delta* latency_loss + loss
+        torch.use_deterministic_algorithms(False)
         total_loss.backward()
         torch.use_deterministic_algorithms(True)
         #return loss.item()
@@ -79,7 +80,7 @@ class ArchitectureKD:
         t_inputs = arch_inputs.clone()
         st_output, st_cell_outputs = self.model(arch_inputs)
         t_output, t_cell_outputs = self.teacher_model(t_inputs)
-        torch.use_deterministic_algorithms(False) 
+        #torch.use_deterministic_algorithms(False) 
         st_loss = self.criterion(st_output, arch_targets)
         t_loss = self.criterion(t_output, arch_targets)
         ops_loss, params_loss, latency_loss = self.get_losses()
@@ -87,7 +88,7 @@ class ArchitectureKD:
         #total_loss = st_total_loss + t_loss + sum([kd_loss_func(st_cell_output, t_cell_output) for t_cell_output,st_cell_output in zip(t_cell_outputs,st_cell_outputs)])
         total_loss = st_total_loss + t_loss
         total_loss.backward()
-        torch.use_deterministic_algorithms(True)
+        #torch.use_deterministic_algorithms(True)
         #return loss.item()
     
     def save_genotype(self, dir=None, epoch=0, nodes=4, use_old_ver=1):

@@ -1,3 +1,4 @@
+from matplotlib.patches import FancyArrow
 import torch.nn as nn
 import torch.nn.functional as F
 from .basic import Binarization1 as Binarization
@@ -77,7 +78,7 @@ class BinConv2d(nn.Conv2d):
         #    return F.conv2d(F.pad(x, self._reversed_padding_repeated_twice(),self.padding_mode), binary_weights, stride=self.stride, padding=self.padding, dilation=self.dilation)
 
 class BinConvTranspose2d(nn.ConvTranspose2d):
-    def __init__(self, in_channels: int, out_channels: int, kernel_size, stride = 1, padding= 0, output_padding = 0, groups: int = 1, bias: bool = True, dilation: int = 1, padding_mode: str = 'zeros', device=None, dtype=None, jit=False):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size, stride = 1, padding= 0, output_padding = 0, groups: int = 1, bias: bool = False, dilation: int = 1, padding_mode: str = 'zeros', device=None, dtype=None, jit=False):
         super(BinConvTranspose2d, self).__init__(in_channels, out_channels, kernel_size, stride, padding, output_padding, groups, bias, dilation, 'zeros', device, dtype)
         self.jit = jit
         self.basic_layer=True
@@ -102,5 +103,5 @@ class BinConvTranspose2d(nn.ConvTranspose2d):
                 binary_weights = binarize(self.weight)
             else:
                 binary_weights = self.weight
-        return F.conv_transpose2d(x, binary_weights, stride=self.stride, dilation=self.dilation, padding=self.padding, output_padding=self.output_padding)
+        return F.conv_transpose2d(x, binary_weights, stride=self.stride, dilation=self.dilation, padding=self.padding, output_padding=self.output_padding, groups=self.groups)
 

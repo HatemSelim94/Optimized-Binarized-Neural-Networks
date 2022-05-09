@@ -124,6 +124,17 @@ class Identity(nn.Module):
 class Bilinear(nn.Upsample):
     def __init__(self, size= None, scale_factor = 2, mode: str = 'bilinear', align_corners = False):
         super(Bilinear, self).__init__(scale_factor=scale_factor, mode=mode, align_corners=align_corners)
+#class Bilinear(nn.Module):
+#    def __init__(self,scale_factor=2):
+#        super(Bilinear, self).__init__()
+#        self.upscale = int(scale_factor)
+#
+#    def forward(self, x):
+#        '''
+#        x: 4-dim tensor. shape is (batch,channel,h,w)
+#        output: 4-dim tensor. shape is (batch,channel,self.upscale*h,self.upscale*w)
+#        '''
+#        return x[:, :, :, None, :, None].expand(-1, -1, -1, self.upscale, -1, self.upscale).reshape(x.size(0), x.size(1), x.size(2)*self.upscale, x.size(3)*self.upscale)
 
 
 class AvgPool(nn.Module):

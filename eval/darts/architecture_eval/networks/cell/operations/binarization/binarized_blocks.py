@@ -3,6 +3,14 @@ import torch.nn as nn
 from .binarized_layers import EvalBinActivation, EvalBinConv2d, EvalBinConvTranspose2d
 from .plot import plot_tensor_dist, plot_weight
 
+class Scale_2d(nn.Module):
+    def __init__(self, out_ch,init_val=0.001):
+        super(Scale_2d, self).__init__()
+        self.par = nn.Parameter(torch.randn((out_ch)))
+        self.affine = None
+        nn.init.constant_(self.par, init_val)
+    def forward(self,x):
+        return x*self.par[None,:,None,None]
 
 # *
 class BinConvBnHTanh(nn.Module):
@@ -14,6 +22,7 @@ class BinConvBnHTanh(nn.Module):
         self.activation_func = activation
         self.conv = EvalBinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation,padding_mode=padding_mode,jit=jit)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
+        #self.batchnorm = Scale_2d(out_channels)
         if activation =='htanh':
             self.activation = nn.Hardtanh(-1, 1)
         if activation == 'relu':
@@ -65,6 +74,7 @@ class BinTConvBnHTanh(nn.Module):
         self.activation_func = activation
         self.conv = EvalBinConvTranspose2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode,jit=jit)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
+        #self.batchnorm = Scale_2d(out_channels)
         if activation =='htanh':
             self.activation = nn.Hardtanh(-1, 1)
         if activation == 'relu':
@@ -118,13 +128,16 @@ class BinConvBn(nn.Module):
         super(BinConvBn, self).__init__()
         #self.ops = nn.Sequential
         self.conv = EvalBinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode, jit=jit)
-        self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
+        #self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
+        self.batchnorm = nn.Parameter(torch.randn((out_channels)))
+        nn.init.constant_(self.batchnorm, 0.001)
         self.binarize = EvalBinActivation(jit,binarization)
         self.latency_table = {}
     def forward(self, x):
         x = self.binarize(x)
         x = self.conv(x)
-        x = self.batchnorm(x)
+        #x = self.batchnorm(x)
+        x = x*self.batchnorm[None,:,None,None]
         return x
 
     def plot_activation(self, x, path=None):

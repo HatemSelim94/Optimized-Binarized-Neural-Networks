@@ -110,16 +110,16 @@ def train_arch_kd(model_dataloader, arch_dataloader, arch_kd, criterion, optimiz
             last_layer_loss = last_layer_loss_func(F.softmax(outputs,dim=1).log(), F.softmax(t_outputs, dim=1))
             for int_outputs, t_int_outputs in zip(int_outputs_list, t_int_outputs_list):
                 int_total_loss += loss_func(int_outputs, t_int_outputs)
-            torch.use_deterministic_algorithms(False)
-            loss = criterion(outputs, trgts) # mean
-            t_loss = criterion(t_outputs, trgts)
+            #torch.use_deterministic_algorithms(False)
+            loss = criterion(outputs, trgts).mean() # mean
+            t_loss = criterion(t_outputs, trgts).mean()
             teacher_loss += t_loss.item()
             student_loss += loss.item()
             if step% 10 == 0:
                 print(f'Batch {step}: KD loss {int_total_loss.item():.2f} Teacher loss {teacher_loss/(step+1):0.3f} Student loss {student_loss/(step+1):0.3f}')
             total_loss = loss +t_loss+last_layer_loss + int_total_loss
             total_loss.backward()
-            torch.use_deterministic_algorithms(True)
+            #torch.use_deterministic_algorithms(True)
             optimizer.step() # [-1, 1] (conv)
             t_optimizer.step()
             #train_loss += (loss.item()*imgs.shape[0]) # loss per image
@@ -146,10 +146,12 @@ def train_arch(model_dataloader, arch_dataloader, arch, criterion, optimizer, ep
             trgts = trgts.to(device, non_blocking = True)
             optimizer.zero_grad()
             outputs = arch.model(imgs)
+            #torch.use_deterministic_algorithms(False)
+            loss = criterion(outputs, trgts).mean() # mean
             torch.use_deterministic_algorithms(False)
-            loss = criterion(outputs, trgts) # mean
             loss.backward()
             torch.use_deterministic_algorithms(True)
+            #torch.use_deterministic_algorithms(True)
             optimizer.step() # [-1, 1] (conv)
             #train_loss += (loss.item()*imgs.shape[0]) # loss per image
             #predictions = torch.argmax(torch.softmax(outputs, dim=1), dim=1)
@@ -165,7 +167,7 @@ def train_arch(model_dataloader, arch_dataloader, arch, criterion, optimizer, ep
                 trgts = trgts.to(device, non_blocking = True)
                 optimizer.zero_grad()
                 outputs = arch.model(imgs)
-                loss = criterion(outputs, trgts) # mean
+                loss = criterion(outputs, trgts).mean() # mean
                 loss.backward()
                 optimizer.step() # [-1, 1] (conv)
         else:
@@ -194,8 +196,9 @@ def train(train_queue, model, criterion, optimizer, num_of_classes=3,device='cud
         scheduler(step, epoch)
     optimizer.zero_grad()
     outputs = model(imgs)
+    #torch.use_deterministic_algorithms(False)
+    loss = criterion(outputs, trgts).mean()
     torch.use_deterministic_algorithms(False)
-    loss = criterion(outputs, trgts)
     loss.backward()
     torch.use_deterministic_algorithms(True)
     optimizer.step() # [-1, 1] (conv)
@@ -206,6 +209,96 @@ def train(train_queue, model, criterion, optimizer, num_of_classes=3,device='cud
     metric.update(trgts.cpu().numpy(), predictions.cpu().numpy())
   mean_iou, _ = metric.get_iou()
   train_loss /= len(train_queue.dataset)
+
+  return round(mean_iou*100, 2),train_loss
+
+
+import matplotlib.pyplot as plt
+import seaborn as sb
+def plot_tensor_dist(input, save= False, show=False, file_name = None, density = False):
+    file_dir = file_name.split('/')[:-1]
+    file_dir = '/'.join(file_dir)
+    if density:
+      file_name = file_name.split('/')[-1]
+      file_dir = os.path.join(file_dir,'density')
+      file_name = file_dir+'/'+file_name
+    if not os.path.exists(file_dir):
+      os.makedirs(file_dir)
+    if file_name is None:
+      file_name = 'Dist'
+    with torch.no_grad():
+      x = input[0,:,:,:].view(-1).numpy()
+    min = x.min().round()
+    max = x.max().round()
+    fig, axs = plt.subplots(1, 1,
+                        tight_layout = True)
+    
+    #axs.hist(x, bins = 100, color='g',density=density)
+    sb.displot(x = x  , kind = 'kde' , color = 'green', fill=True)
+    # Move left y-axis and bottim x-axis to centre, passing through (0,0)
+    axs.spines['left'].set_position('zero')
+    #axs.spines['bottom'].set_position('center')
+	# Eliminate upper and right axes
+    axs.spines['right'].set_color('none')
+    axs.spines['top'].set_color('none')
+    plt.xticks([-max, -min,0,min,max])
+    plt.yticks([])
+    # Show plot
+    if save:
+        plt.savefig(file_name,dpi=400)
+    if show:
+        plt.show()
+    plt.cla()
+    plt.close('all')
+    plt.rcParams.update({'figure.max_open_warning': 0})
+
+def train_kd_rl(train_queue, model, fp_model, criterion, optimizer, fp_optimizer, num_of_classes=3,device='cuda', scheduler=None, epoch=None, poly_scheduler=None, start_kd=False, use_kd=False):
+  metric = SegMetrics(num_of_classes)
+  scheduler = scheduler if poly_scheduler else DummyScheduler()
+  train_loss = 0
+  mean_iou = 0
+  model.train()
+  fp_model.train()
+  for step, (imgs, trgts, _) in enumerate(train_queue):
+    imgs = imgs.to(device)
+    trgts = trgts.to(device, non_blocking = True)
+    if poly_scheduler:
+        scheduler(step, epoch)
+    optimizer.zero_grad()
+    fp_optimizer.zero_grad()
+    if start_kd:
+        fp_model.eval()
+        fp_out, fp_inter_outputs = fp_model(imgs)
+        out, inter_outputs = model(imgs)
+        loss = criterion(out, trgts).mean()
+        #with torch.no_grad():
+        #    print([(torch.unique(inter_bin_out),torch.unique(inter_fp_out)) for inter_bin_out, inter_fp_out in zip(inter_outputs, fp_inter_outputs)])
+        #kd_loss = sum([F.kl_div(inter_bin_out, inter_fp_out,reduction='batchmean') for inter_bin_out, inter_fp_out in zip(inter_outputs, fp_inter_outputs)])
+        kd_loss = sum([F.mse_loss(inter_bin_out, inter_fp_out) for inter_bin_out, inter_fp_out in zip(inter_outputs, fp_inter_outputs)]) 
+        kd_loss += F.mse_loss(out, fp_out)
+        if use_kd:
+            total_loss = loss * 0.5 + kd_loss * 0.5
+            print(f'KD loss: {round(kd_loss.item(), 2)}')
+        else:
+            total_loss = loss
+        torch.use_deterministic_algorithms(False)
+        total_loss.backward()
+        torch.use_deterministic_algorithms(True)
+        optimizer.step()
+        train_loss += (total_loss.item()*imgs.shape[0])
+        with torch.no_grad():
+            predictions = torch.softmax(out, dim=1)
+            predictions = torch.argmax(predictions, dim=1)
+            metric.update(trgts.cpu().numpy(), predictions.cpu().numpy())
+            mean_iou, _ = metric.get_iou()
+            train_loss /= len(train_queue.dataset)
+    else:
+        fp_out, fp_inter_outputs = fp_model(imgs)
+        fp_loss = criterion(fp_out, trgts).mean()
+        torch.use_deterministic_algorithms(False)
+        fp_loss.backward()
+        torch.use_deterministic_algorithms(True)
+        fp_optimizer.step() # [-1, 1] (conv)
 
   return round(mean_iou*100, 2),train_loss
 
@@ -223,13 +316,13 @@ def train_kd(train_queue, model, teacher_model, criterion, optimizer, teacher_op
     teacher_optimizer.zero_grad()
     student_output, student_losses = model(imgs)
     teacher_output, teacher_losses = teacher_model(imgs)
-    torch.use_deterministic_algorithms(False)
+    #torch.use_deterministic_algorithms(False)
     student_loss = criterion(student_output, trgts)
     teacher_loss = criterion(teacher_output, trgts)
     kd_loss = sum([torch.nn.functional.kl_div(teacher_losses[i], student_losses[i]) for i in range(len(student_losses))])
     total_loss = student_loss + teacher_loss + kd_loss 
     total_loss.backward()
-    torch.use_deterministic_algorithms(True)
+    #torch.use_deterministic_algorithms(True)
     optimizer.step() # [-1, 1] (conv)
     teacher_optimizer.step()
     train_loss += (student_loss.item()*imgs.shape[0])
@@ -257,13 +350,13 @@ def train_kd_v2(train_queue, model, teacher_model, criterion, optimizer, num_of_
     
     student_output, student_intermediate_outputs = model(imgs)
     _, teacher_intermediate_outputs = teacher_model(imgs)
-    torch.use_deterministic_algorithms(False)
-    student_loss = criterion(student_output, trgts)
+    #torch.use_deterministic_algorithms(False)
+    student_loss = criterion(student_output, trgts).mean()
     #teacher_loss = criterion(teacher_output, trgts)
     kd_loss = sum([torch.nn.functional.kl_div(teacher_intermediate_outputs[i], student_intermediate_outputs[i]) for i in range(len(student_intermediate_outputs))])
     total_loss = student_loss + kd_loss 
     total_loss.backward()
-    torch.use_deterministic_algorithms(True)
+    #torch.use_deterministic_algorithms(True)
     optimizer.step() # [-1, 1] (conv)
     train_loss += (student_loss.item()*imgs.shape[0])
     with torch.no_grad():
@@ -285,9 +378,9 @@ def infer_kd(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
       trgts = trgts.to(device)
 
       outputs,_ = model(imgs)
-      torch.use_deterministic_algorithms(False)
-      loss = criterion(outputs, trgts)
-      torch.use_deterministic_algorithms(True)
+      #torch.use_deterministic_algorithms(False)
+      loss = criterion(outputs, trgts).mean()
+      #torch.use_deterministic_algorithms(True)
       outputs = torch.softmax(outputs, dim=1)
       predicted = torch.argmax(outputs, dim=1)
       val_loss += (loss.item() * imgs.shape[0])
@@ -307,18 +400,19 @@ def infer(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
       trgts = trgts.to(device)
 
       outputs = model(imgs)
-      torch.use_deterministic_algorithms(False)
-      loss = criterion(outputs, trgts)
-      torch.use_deterministic_algorithms(True)
+     #torch.use_deterministic_algorithms(False)
+      loss = criterion(outputs, trgts).mean()
+      #torch.use_deterministic_algorithms(True)
       outputs = torch.softmax(outputs, dim=1)
       predicted = torch.argmax(outputs, dim=1)
       val_loss += (loss.item() * imgs.shape[0])
       metric.update(trgts.cpu().numpy(), predicted.cpu().numpy())
-    miou, _ = metric.get_iou()
+    miou, class_miou = metric.get_iou()
+    print(class_miou)
       #if step % args.report_freq == 0:
     val_loss /= len(valid_queue.dataset)
     return round(miou*100, 2), val_loss
-  
+
 class lr_function:
   def __init__(self, epochs):
       self.epochs = epochs

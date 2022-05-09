@@ -45,7 +45,7 @@ def main():
     if not torch.cuda.is_available():
         sys.exit(1)
     classes_weights = KittiDataset.loss_weights_3 if args.num_of_classes ==3 else KittiDataset.loss_weights_8
-    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, label_smoothing=0.2, weight=classes_weights.cuda())
+    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index, label_smoothing=0.2, weight=classes_weights.cuda(), reduction='none')
     criterion = criterion.to(args.device)  
     net = Network(args.num_of_classes).to(args.device)
     input_shape = (1, 3, args.image_size, args.image_size)
@@ -90,22 +90,24 @@ def main():
         data.save_as_json()
     tracker.end()
     #save_model(jit=args.jit)
-    torch.save(net, os.path.join(args.experiment_path, args.experiment_name,'model.pt'))
+    torch.save(net.state_dict(), os.path.join(args.experiment_path, args.experiment_name,'model.pt'))
     net.eval()
     test_loader = torch.utils.data.DataLoader(
                 val_dataset, 
                 batch_size=1)
     for i, (img, label, id) in enumerate(test_loader):
-        
-        if i >20 and i < 300:
-            continue
+        if args.data_name == 'cityscapes':
+            if i >20 and i < 300:
+                continue
+        else:
+            if i < args.train_subset:
+                continue
         img = img.cuda()
         output = net(img)
         prediction = torch.argmax(output, 1)
         DataSets.plot_image_label(prediction.cpu().squeeze(dim=0), id, val_dataset, transforms=plot_transforms,show_titles=False,show=False ,save=True, save_dir=os.path.join(args.experiment_path, args.experiment_name,'prediction_samples'), plot_name= f'sample_output_{id.item()}')
-        if i == 330:
+        if i == 320:
             break
-  
 if __name__ == '__main__':
     main()
     

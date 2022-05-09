@@ -19,8 +19,8 @@ class KittiDataset(Dataset):
     ignore_index = 255
     mean = [0.379, 0.4, 0.386]
     std = [0.309, 0.319, 0.329]
-    loss_weights_8 = torch.tensor([0.0789, 0.0043, 0.0111, 0.0547, 0.0031, 0.0114, 1.0, 0.0182])
-    loss_weights_3 = torch.tensor([0.0953, 0.2894, 1]) # need to be normalized if the loss reduction is not mean
+    loss_weights_8 = torch.tensor([7.8749, 2.9687, 4.8369, 7.5210, 2.3980, 4.8945, 8.7403, 5.8373])
+    loss_weights_3 = torch.tensor([1.666, 3.3242, 5.8373])
     Id2CategoryID   = { label.id : label.categoryId for label in labels }
     Id2CustomID   = { label.id : label.customId for label in labels }
     Id2TrainID   = { label.id : label.trainId for label in labels }
@@ -150,6 +150,8 @@ class CityScapes(Dataset):
     ignore_index = 255
     mean = [0.485, 0.456, 0.406]
     std = [0.229, 0.224, 0.225]
+    loss_weights_3 = torch.tensor([1.8845, 2.6459, 5.4678])
+    loss_weights_8 = torch.tensor([4.7437, 2.4198, 3.6643, 7.5959, 4.2248, 6.8981, 7.8759, 5.4678])
     label_dir = 'gtFine'
     raw_dir = 'leftImg8bit'
     coarse_label_dir = 'gtCoarse'
