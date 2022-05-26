@@ -2,43 +2,83 @@
 from .search_operations import *
 
 
-NR_PRIMITIVES = [
+""" NR_PRIMITIVES = [
     'max_pool_3x3',
     'avg_pool_3x3',
     'conv_1x1',
     'conv_3x3',
     'dil_conv_3x3_r4',
-    'skip_connect'
+    'skip_connect',
+    'dil_conv_3x3_r8',
+    'grouped_conv_3x3'
+] """
+
+NR_PRIMITIVES = [
+    'conv_1x1',
+    'conv_3x3',
+    'dil_conv_3x3_r4',
+    'dil_conv_3x3_r8',
+    'dil_conv_3x3_r12',
+    'grouped_conv_3x3'
 ]
 
-UP_PRIMITIVES = [
+""" UP_PRIMITIVES = [
     'tconv_1x1',
     'tconv_3x3',
     'tconv_5x5',
     'dil_tconv_3x3_r4',
     'dil_tconv_3x3_r6',
-    'dil_tconv_3x3_r8'
+    'dil_tconv_3x3_r8',
+    'dil_tconv_3x3_r12',
+    'dil_tconv_3x3_r16'
+] """
+UP_PRIMITIVES = [
+    'tconv_1x1',
+    'tconv_3x3',
+    'dil_tconv_3x3_r4',
+    'dil_tconv_3x3_r6',
+    'dil_tconv_3x3_r8',
+    'dil_tconv_3x3_r12'
 ]
-
-NR_OPERATIONS= {
+""" NR_OPERATIONS= {
   'max_pool_3x3' : lambda C, stride, affine, padding_mode,jit,dropout2d, binarization, activation: MaxPool(in_channels=C, kernel_size=3, stride=stride, padding=1,affine=affine,activation=activation),
   'avg_pool_3x3' : lambda C, stride, affine,padding_mode,jit,dropout2d, binarization,activation: AvgPool(in_channels=C,kernel_size=3, stride=stride, padding=1,affine=affine,activation=activation),
   'conv_1x1': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: BinConv1x1(C, C, stride = stride, affine=affine, padding_mode=padding_mode,jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
   'conv_3x3': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: BinConv3x3(C, C, stride = stride, affine=affine,padding_mode=padding_mode,jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
   'dil_conv_3x3_r4' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: BinDilConv3x3(C, C, 3, stride = stride, affine=affine, padding=4, dilation=4, padding_mode=padding_mode,jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
-  'skip_connect' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: Identity() if stride == 1 else BinConv1x1(C, C, stride = stride, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation)
+  'dil_conv_3x3_r8' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: BinDilConv3x3(C, C, 3, stride = stride, affine=affine, padding=8, dilation=8, padding_mode=padding_mode,jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'skip_connect' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: Identity() if stride == 1 else BinConv1x1(C, C, stride = stride, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'grouped_conv_3x3': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: GroupedConv(C, C, stride = stride, affine=affine,padding_mode=padding_mode,jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation, groups=C)
+} """
+
+NR_OPERATIONS= {
+  'conv_1x1': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: BinConv1x1(C, C, stride = stride, affine=affine, padding_mode=padding_mode,jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'conv_3x3': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: BinConv3x3(C, C, stride = stride, affine=affine,padding_mode=padding_mode,jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'dil_conv_3x3_r4' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: BinDilConv3x3(C, C, 3, stride = stride, affine=affine, padding=4, dilation=4, padding_mode=padding_mode,jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'dil_conv_3x3_r8' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: BinDilConv3x3(C, C, 3, stride = stride, affine=affine, padding=8, dilation=8, padding_mode=padding_mode,jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'dil_conv_3x3_r12' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: BinDilConv3x3(C, C, 3, stride = stride, affine=affine, padding=12, dilation=12, padding_mode=padding_mode,jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'grouped_conv_3x3': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization,activation: GroupedConv(C, C, stride = stride, affine=affine,padding_mode=padding_mode,jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation, groups=C)
 }
 
 
-UP_OPERATIONS= {
+""" UP_OPERATIONS= {
   'tconv_1x1': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization , activation: BinConvT1x1(C, C, stride = stride, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
   'tconv_3x3': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT3x3(C, C, stride = stride, affine=affine,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
   'tconv_5x5': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT5x5(C, C, stride = stride, affine=affine,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
   'dil_tconv_3x3_r4' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT3x3(C, C, stride = stride, affine=affine,padding=4,dilation=4, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
   'dil_tconv_3x3_r6' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT3x3(C, C, stride = stride, affine=affine,padding=6,dilation=6,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
   'dil_tconv_3x3_r8' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT3x3(C, C, stride = stride, affine=affine,padding=8,dilation=8,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'dil_tconv_3x3_r12': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT3x3(C, C, stride = stride, affine=affine,padding=12,dilation=12,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'dil_tconv_3x3_r16' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT3x3(C, C, stride = stride, affine=affine,padding=16,dilation=16, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation)
+} """
+UP_OPERATIONS= {
+  'tconv_1x1': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization , activation: BinConvT1x1(C, C, stride = stride, affine=affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'tconv_3x3': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT3x3(C, C, stride = stride, affine=affine,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'dil_tconv_3x3_r4' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT3x3(C, C, stride = stride, affine=affine,padding=4,dilation=4, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'dil_tconv_3x3_r6' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT3x3(C, C, stride = stride, affine=affine,padding=6,dilation=6,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'dil_tconv_3x3_r8' : lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT3x3(C, C, stride = stride, affine=affine,padding=8,dilation=8,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
+  'dil_tconv_3x3_r12': lambda C, stride, affine, padding_mode, jit,dropout2d, binarization, activation: BinConvT3x3(C, C, stride = stride, affine=affine,padding=12,dilation=12,padding_mode=padding_mode, jit=jit,dropout2d=dropout2d,binarization=binarization,activation=activation),
 }
-
 
 Fp_NR_OPERATIONS= {
   'max_pool_3x3' : lambda C, stride, affine,padding_mode,jit,dropout2d, binarization, activation: MaxPool(in_channels=C, kernel_size=3, stride=stride, padding=1,affine=affine, activation=activation),

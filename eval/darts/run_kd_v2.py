@@ -13,7 +13,7 @@ from easydict import EasyDict
 
 parser  = argparse.ArgumentParser('DARTS')
 parser.add_argument('--data_name', type=str, default='cityscapes')
-parser.add_argument('--data_path', type=str, default='../../data/cityscapes/')
+#parser.add_argument('--data_path', type=str, default='../../data/cityscapes/')
 parser.add_argument('--batch_size', type=int, default=4)
 parser.add_argument('--image_size', type=int, default=224)
 parser.add_argument('--num_of_classes', type=int, default=3)
@@ -37,7 +37,7 @@ parser.add_argument('--device', type=str, default='cuda')
 parser.add_argument('--seed', type=int, default=4)
 parser.add_argument('--affine', type=int, default=1)
 parser.add_argument('--binary', type=int, default=1)
-parser.add_argument('--last_layer_binary', type=bool,default=True)
+parser.add_argument('--last_layer_binary', type=int,default=1)
 parser.add_argument('--last_layer_kernel_size', type=int, default=3)
 parser.add_argument('--genotype_path', type=str, default='search/darts/experiments/')
 parser.add_argument('--search_exp_name', type=str, default='exp1')
@@ -84,10 +84,15 @@ parser.add_argument('--teacher_activation', type=str, default='relu')
 parser.add_argument('--teacher_first_layer_activation', type=str, default='htanh')
 parser.add_argument('--teacher_use_skip', type=int, default=1)
 parser.add_argument('--teacher_use_kd', type=int, default=0)
+parser.add_argument('--teacher_last_layer_binary', type=int, default=0)
 parser.add_argument('--teacher_last_layer_kernel_size', type=int, default=3)
 parser.add_argument('--teacher_channel_expansion_ratio_r', type= float, default=2)
 parser.add_argument('--teacher_channel_reduction_ratio_u', type=float, default=14)
 parser.add_argument('--teacher_channel_normal_ratio_n', type=float, default=0.25)
+parser.add_argument('--teacher_upsample_mode', type=str, default='bilinear')
+parser.add_argument('--load_experiment_name', type=str, default='exp1')
+parser.add_argument('--load_model', type=int, default=0)
+parser.add_argument('--upsample_mode', type=str, default='bilinear')
 args = parser.parse_args()
 torch.cuda.empty_cache()
 teacher_args = EasyDict()
@@ -96,7 +101,7 @@ teacher_args.affine = args.teacher_affine
 teacher_args.nodes_num = args.teacher_nodes_num
 teacher_args.edge_num = args.teacher_edge_num
 teacher_args.ops_num = args.teacher_ops_num
-teacher_args.cells_sequence = args.teacher_cells_sequence
+teacher_args.network_sequence = args.teacher_cells_sequence
 teacher_args.stem_channels = args.teacher_stem_channels
 teacher_args.genotype_path = args.teacher_genotype_path
 teacher_args.use_old_ver = args.teacher_use_old_ver
@@ -115,10 +120,13 @@ teacher_args.kd = args.teacher_use_kd
 teacher_args.num_of_classes = args.num_of_classes
 teacher_args.image_size = args.image_size
 teacher_args.last_layer_kernel_size = args.teacher_last_layer_kernel_size
+teacher_args.last_layer_binary = args.teacher_last_layer_binary
 teacher_args.binary_aspp = args.binary_aspp
 teacher_args.channel_expansion_ratio_r = args.teacher_channel_expansion_ratio_r
 teacher_args.channel_reduction_ratio_u = args.teacher_channel_reduction_ratio_u
 teacher_args.channel_normal_ratio_n = args.teacher_channel_normal_ratio_n
+teacher_args.upsample_mode = args.teacher_upsample_mode
+teacher_args.use_kd = args.teacher_use_kd
 assert(args.use_old_ver != args.use_skip)
 
 
@@ -127,26 +135,24 @@ def main():
     clean_dir(args)
     if not torch.cuda.is_available():
         sys.exit(1)
-    classes_weights = KittiDataset.loss_weights_3 if args.num_of_classes ==3 else KittiDataset.loss_weights_8
+    train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
+    val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size,args.image_size]}})
+    plot_transforms = Transformer.get_transforms({'resize':{'size':[args.image_size,args.image_size]}})
+    train_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes, transforms=train_transforms)
+    classes_weights = train_dataset.loss_weights_3 if args.num_of_classes ==3 else train_dataset.loss_weights_8
     classes_weights = classes_weights.cuda() if args.use_weights else None
-    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index,weight=classes_weights, label_smoothing=0.2)
+    criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index,weight=classes_weights, reduction='none')
     criterion = criterion.to(args.device)  
     net = Network(args).to(args.device)
     net._set_criterion(criterion)
     # teacher
     teacher_net = Network(teacher_args)
-    teacher_net.load_state_dict(torch.load(args.teacher_model_path)) # load teacher
+    teacher_net.load_state_dict(torch.load(args.teacher_model_path), strict=False) # load teacher
     teacher_net.to(args.device)
 
     input_shape = (1, 3, args.image_size, args.image_size)
-    model_info(net, input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
-    prepare_ops_metrics(net, input_shape)
     #train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[448,448]},'center_crop':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
     #val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[448,448]},'center_crop':{'size':[args.image_size,args.image_size]}})
-    train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[args.image_size,args.image_size]},'random_horizontal_flip':{'flip_prob':0.2}})
-    val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size,args.image_size]}})
-    plot_transforms = Transformer.get_transforms({'resize':{'size':[args.image_size,args.image_size]}})
-    train_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes, transforms=train_transforms)
     if args.data_name == 'cityscapes':
         val_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='val',transforms=val_transforms)
         train_idx = range(args.train_subset)
@@ -154,7 +160,13 @@ def main():
         sub_train_dataset = Subset(train_dataset, [i for i in train_idx])
         sub_val_dataset = Subset(val_dataset, [i for i in val_idx])
     elif args.data_name == 'kitti':
-        assert  args.train_subset + args.val_subset <= 200   
+        assert  args.train_subset + args.val_subset <= 200
+        if args.load_model:
+            net = Network(args)
+            net._set_criterion(criterion) 
+            net.load_state_dict(torch.load(os.path.join(args.experiment_path, args.load_experiment_name,'model.pt')), strict=False)
+            net.to(args.device)
+              
         train_idx = range(args.train_subset)
         val_idx = range(args.train_subset, min(200,args.train_subset+args.val_subset)) 
         val_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes,split='train',transforms=val_transforms)
@@ -168,7 +180,8 @@ def main():
     val_loader = torch.utils.data.DataLoader(
                     sub_val_dataset, 
                     batch_size= args.batch_size, pin_memory = True)
-    
+    #model_info(net, input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
+    #prepare_ops_metrics(net, input_shape)
     num_of_classes = args.num_of_classes
     if args.lr_auto:
         lr  = 0.00004*args.batch_size/16

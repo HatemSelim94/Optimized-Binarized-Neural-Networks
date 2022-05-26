@@ -35,6 +35,7 @@ class Network(nn.Module):
         self.kd = args.use_kd
         self.use_old_ver = args.use_old_ver
         self.binary_aspp = args.binary_aspp
+        self.use_maxpool = args.use_maxpool
         if self.use_old_ver:
             self.total_edge_num = sum([self.edge_num+i for i in range(self.nodes_num)])
             self.alphas = [torch.empty((self.total_edge_num ,self.ops_num), requires_grad=True, device=args.device) for _ in range(self.unique_cells_len)]
@@ -44,7 +45,7 @@ class Network(nn.Module):
             nn.init.constant_(self.alphas[i], 1/self.ops_num * 1e-2)
             #nn.init.normal_(self.alphas[i])
                 # first layer (fp)
-        self.first_layer = Stem(out_channels=self.initial_channels, affine=self.affine, activation=self.first_layer_activation)
+        self.first_layer = Stem(out_channels=self.initial_channels, affine=self.affine, activation=self.first_layer_activation, use_maxpool=self.use_maxpool)
         # cells
         self.cells = nn.ModuleList()
         c_prev_prev = self.initial_channels
@@ -74,8 +75,10 @@ class Network(nn.Module):
                 c_prev = (self.nodes_num * c) + self.initial_channels
             else:
                 c_prev = self.nodes_num*c
-        
-        scale = 2 # stem i.e. first layer
+        if self.use_maxpool:
+            scale = 4
+        else:
+            scale = 2 # stem i.e. first layer
         for cell in self.cells_sequence:
             if cell == 'r':
                 scale*=2
@@ -143,17 +146,21 @@ class Network(nn.Module):
 
 
 class Stem(nn.Module):
-    def __init__(self, out_channels=64, in_channels = 3, kernel_size=3, layers_num = 1, affine=True, activation='tanh'):
+    def __init__(self, out_channels=64, in_channels = 3, kernel_size=3, layers_num = 1, affine=True, activation='tanh', use_maxpool=0):
         super(Stem, self).__init__()
-        activation_func = {'htanh':nn.Hardtanh, 'relu': nn.ReLU}
+        activation_func = {'htanh':nn.Hardtanh, 'relu': nn.ReLU, 'prelu':nn.PReLU}
         self.layers = nn.Sequential()
         self.layers.add_module('stem_conv', nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size, bias=False, padding=1, stride=2))
         #self.layers.add_module('max_pool', nn.MaxPool2d(3,stride=2, padding=1))
+        if use_maxpool:
+            self.layers.add_module('max_pool', nn.MaxPool2d(2,2, ceil_mode=True))
         if activation =='relu':
             self.layers.add_module('stem_activation', activation_func[activation]())
         self.layers.add_module('stem_bn', nn.BatchNorm2d(out_channels, affine=affine))
         if activation =='htanh':
-            self.layers.add_module('stem_activation', activation_func[activation]())            
+            self.layers.add_module('stem_activation', activation_func[activation]())
+        if activation == 'prelu':
+            self.layers.add_module('stem_activation', activation_func[activation](out_channels))           
         
     def forward(self, x):
         x = self.layers(x)

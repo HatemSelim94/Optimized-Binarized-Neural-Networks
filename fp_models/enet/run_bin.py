@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.utils.data import Subset
 import argparse
 import os
-from model import ENet as Network
+from model_bin import BinENet as Network
 from processing import Transformer, DataSets
 from processing.datasets import CityScapes, KittiDataset
 from utilities.latency import get_latency
@@ -105,10 +105,13 @@ def main():
     val_loader = torch.utils.data.DataLoader(
                     sub_val_dataset, 
                     batch_size= args.batch_size, pin_memory = True)
-    fp_params = [p for p in net.parameters()]
-    print(sum([p.numel() for p in net.parameters()])*32/4/1e6, 'MB')
-    optimizer = torch.optim.Adam(fp_params, lr=args.network_optim_fp_lr) 
-    #optimizer=Clipper.get_clipped_optim('SGD',optim_args)
+    fp_params = [p for p in net.parameters() if not hasattr(p,'bin')]
+    print(sum([p.numel() for p in net.parameters() if not hasattr(p, 'bin')])*32/4/1e6 + sum([p.numel() for p in net.parameters() if hasattr(p, 'bin')])*1/4/1e6, 'MB')
+    #optimizer = torch.optim.Adam(fp_params, lr=args.network_optim_fp_lr)
+    # fp_params = [p for p in net.parameters() if not hasattr(p,'bin')]
+    bin_params = [p for p in net.parameters() if hasattr(p,'bin')]
+    optim_args = [[{'params':fp_params, 'weight_decay':args.network_optim_fp_weight_decay,'lr':args.network_optim_fp_lr},{'params':bin_params, 'weight_decay':0,'lr':args.network_optim_bin_lr}]] 
+    optimizer=Clipper.get_clipped_optim('Adam',optim_args)
     #scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step:((step/args.epochs))**2)
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[i for i in range(20, args.epochs, args.decay_step)], gamma=args.decay_val)
     data = DataPlotter(os.path.join(args.experiment_path, args.experiment_name))
@@ -117,7 +120,7 @@ def main():
     for epoch in range(args.epochs):
         # training
         train_miou, train_loss = train(train_loader, net, criterion, optimizer, args.num_of_classes)
-        #scheduler.step()
+        scheduler.step()
         miou, loss= infer(val_loader, net, criterion, num_of_classes=args.num_of_classes)
         tracker.print(train_loss,train_miou, loss, miou, epoch=epoch)
         data.store(epoch, train_loss, loss, train_miou, miou)

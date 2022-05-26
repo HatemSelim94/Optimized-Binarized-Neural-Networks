@@ -76,13 +76,13 @@ class BinConvT5x5(BinTConvBnHTanh):
 
 
 class BinDilConv3x3(BinConvBnHTanh):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=2, dilation=2,affine=True, padding_mode='zeros',jit=False,dropout2d=0.1, binarization=1, activation='htanh'):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=2, dilation=2,affine=True, padding_mode='zeros',jit=False,dropout2d=0.1, binarization=1, activation='htanh', groups=1):
         super(BinDilConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode,jit,dropout2d,binarization,activation)
         
 
 
 class BinConv1x1(BinConvBnHTanh):
-    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros',jit=False,dropout2d=0.1, binarization=1, activation='htanh'):
+    def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros',jit=False,dropout2d=0.1, binarization=1, activation='htanh', groups=1):
         super(BinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode,jit,dropout2d,binarization,activation)
         
 # last layer
@@ -97,12 +97,16 @@ class Convbn1x1(ConvBn):
 
 
 class BinConv3x3(BinConvBnHTanh):
-    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1, activation='htanh'):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1, affine=True, padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1, activation='htanh', groups=1):
         super(BinConv3x3, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit, dropout2d, binarization,activation)
         
 class BasicBinConv1x1(BinConv):
     def __init__(self, in_channels, out_channels, kernel_size=1, stride=1, padding=0, dilation=1, affine=True, padding_mode='zeros', jit=False, binarization=1, activation='htanh'):
         super(BasicBinConv1x1, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, affine, padding_mode, jit,binarization,activation)
+
+class GroupedConv(BinConvBnHTanh):
+    def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, dilation=1, affine=True, padding_mode='zeros',jit=False,dropout2d=0.1, binarization=1, activation='htanh', groups=1):
+        super(GroupedConv, self).__init__(in_channels, out_channels, kernel_size, stride, padding, dilation,affine, padding_mode,jit,dropout2d,binarization,activation, groups)
 
 
 class Identity(nn.Module):

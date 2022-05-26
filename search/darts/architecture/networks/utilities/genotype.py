@@ -6,25 +6,44 @@ import os
 import seaborn as sns 
 import matplotlib.pyplot as plt
 
-NR_PRIMITIVES = [
+""" NR_PRIMITIVES = [
     'max_pool_3x3',
     'avg_pool_3x3',
     'conv_1x1',
     'conv_3x3',
     'dil_conv_3x3_r4',
-    'skip_connect'
+    'skip_connect',
+    'dil_conv_3x3_r8',
+    'grouped_conv_3x3'
+] """
+NR_PRIMITIVES = [
+    'conv_1x1',
+    'conv_3x3',
+    'dil_conv_3x3_r4',
+    'dil_conv_3x3_r8',
+    'dil_conv_3x3_r12',
+    'grouped_conv_3x3'
 ]
 
-UP_PRIMITIVES = [
+""" UP_PRIMITIVES = [
     'tconv_1x1',
     'tconv_3x3',
     'tconv_5x5',
     'dil_tconv_3x3_r4',
     'dil_tconv_3x3_r6',
-    'dil_tconv_3x3_r8'
+    'dil_tconv_3x3_r8',
+    'dil_tconv_3x3_r12',
+    'dil_tconv_3x3_r16'
 ]
-
-
+ """
+UP_PRIMITIVES = [
+    'tconv_1x1',
+    'tconv_3x3',
+    'dil_tconv_3x3_r4',
+    'dil_tconv_3x3_r6',
+    'dil_tconv_3x3_r8',
+    'dil_tconv_3x3_r12'
+]
 
 def plot_cell(idx,cell_type, dir,epoch,alpha, view=False, nodes=4, use_old_ver=1):
     ops = NR_PRIMITIVES if cell_type in ['n','r'] else UP_PRIMITIVES

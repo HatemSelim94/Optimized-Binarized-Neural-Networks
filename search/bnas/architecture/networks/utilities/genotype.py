@@ -11,7 +11,9 @@ NR_PRIMITIVES = [
     'conv_1x1',
     'conv_3x3',
     'dil_conv_3x3_r4',
-    'skip_connect'
+    'skip_connect',
+    'dil_conv_3x3_r8',
+    'grouped_conv_3x3'
 ]
 
 UP_PRIMITIVES = [
@@ -20,9 +22,10 @@ UP_PRIMITIVES = [
     'tconv_5x5',
     'dil_tconv_3x3_r4',
     'dil_tconv_3x3_r6',
-    'dil_tconv_3x3_r8'
+    'dil_tconv_3x3_r8',
+    'dil_tconv_3x3_r12',
+    'dil_tconv_3x3_r16'
 ]
-
 
 
 def plot_cell(idx,cell_type, dir,epoch, view=False, nodes=4, use_old_ver=1):

@@ -817,7 +817,7 @@ class LastLayer(nn.Module):
         else:
             self.layers = nn.Sequential(
                 nn.Conv2d(in_channels, classes_num, kernel_size, padding=kernel_size//2),
-                nn.BatchNorm2d(classes_num, affine=affine)
+                #nn.BatchNorm2d(classes_num, affine=affine)
             )
     def forward(self, x):
         x = self.layers(x)

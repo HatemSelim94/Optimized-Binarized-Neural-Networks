@@ -26,7 +26,7 @@ def identity_ops_forward_hook(mod, input, output):
 def binconv_ops_forward_hook(mod, input, output): # weight binarization is not included here
     #input_binarization_ops = np.prod(input[0].shape)
     input_binarization_ops = 0
-    ops = np.prod(mod.weight.shape)
+    ops = np.prod(mod.weight.shape)/mod.groups
     ops *= np.prod(output.shape[2:])
     ops *= output.shape[0]
     ops/=64

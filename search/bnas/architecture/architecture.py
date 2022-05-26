@@ -17,7 +17,8 @@ class Architecture:
         #return loss * arch_inputs.shape[0]
     
     def _backward_step(self, arch_predictions, arch_targets):
-        loss = self.model._loss(arch_predictions, arch_targets)
+        loss = self.model._loss(arch_predictions, arch_targets).mean()
+        torch.use_deterministic_algorithms(False)
         loss.backward()
         torch.use_deterministic_algorithms(True)
         #return loss.item()

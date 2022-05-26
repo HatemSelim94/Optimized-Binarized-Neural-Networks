@@ -19,10 +19,10 @@ class BinConvBnHTanh(nn.Module):
     '''
     binarize -> conv -> batchnorm -> hardtanh
     '''
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros', jit=False, dropout2d=0.1, binarization=1, activation='htanh'):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros', jit=False, dropout2d=0.1, binarization=1, activation='htanh', groups=1):
         super(BinConvBnHTanh, self).__init__()
         self.activation_func = activation
-        self.conv = BinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation,padding_mode=padding_mode,jit=jit)
+        self.conv = BinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation,padding_mode=padding_mode,jit=jit, groups=groups)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         if activation =='htanh':
             self.activation = nn.Hardtanh(-1, 1)
@@ -62,7 +62,7 @@ class BinConvBnHTanh(nn.Module):
                 plot_weight(self.conv.weight)
 
     def get_config(self):
-        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size[0], 'stride':self.conv.stride[0], 'padding':self.conv.padding[0], 'dilation':self.conv.dilation[0], 'affine':self.batchnorm.affine, 'padding_mode':self.conv.padding_mode, 'jit':self.binarize.jit,'dropout2d':self.dropout.p, 'binarization':self.binarize.binarization, 'activation':self.activation_func}
+        return {'in_channels':self.conv.in_channels, 'out_channels':self.conv.out_channels, 'kernel_size':self.conv.kernel_size[0], 'stride':self.conv.stride[0], 'padding':self.conv.padding[0], 'dilation':self.conv.dilation[0], 'affine':self.batchnorm.affine, 'padding_mode':self.conv.padding_mode, 'jit':self.binarize.jit,'dropout2d':self.dropout.p, 'binarization':self.binarize.binarization, 'activation':self.activation_func, 'groups':self.conv.groups}
     
     @classmethod
     def model(cls, config):
@@ -128,13 +128,16 @@ class BinConvBn(nn.Module):
         super(BinConvBn, self).__init__()
         #self.ops = nn.Sequential
         self.conv = BinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode, jit=jit)
-        self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
+        #self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         self.binarize = BinActivation(jit,binarization)
+        self.batchnorm = nn.Parameter(torch.randn((out_channels)))
+        nn.init.constant_(self.batchnorm, 0.001)
         self.latency_table = {}
     def forward(self, x):
         x = self.binarize(x)
         x = self.conv(x)
-        x = self.batchnorm(x)
+        #x = self.batchnorm(x)
+        x = x*self.batchnorm[None,:,None,None]
         return x
 
     def plot_activation(self, x, path=None):

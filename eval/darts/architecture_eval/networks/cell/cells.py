@@ -6,6 +6,7 @@ from .operations.search_operations import BinConvbn1x1, BinConvT1x1, ConvBn, Bas
 
 from .operations import EvalSum, Preprocess, FpPreprocess,EvalCat, EvalBilinear
 from .edge import EvalEdge
+from .operations import BinConv1x1
 
 
 class NCell(nn.Module):
@@ -336,8 +337,9 @@ class NCellNSkipOld(nn.Module):
             for e in range(edges_num):
                 self.edges.append(EvalEdge(C, 1, [genotype['ops'][i]], 'n', affine, binary,padding_mode=padding_mode,jit=jit, binarization=binarization,activation=activation))
                 i+=1
-        self.sum = EvalSum()
+        #self.sum = EvalSum()
         self.cat = EvalCat()
+        self.conv1x1 = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
 
     def forward(self, input0, input1):
         s0 = self.preprocess0(input0)
@@ -345,7 +347,8 @@ class NCellNSkipOld(nn.Module):
         states = [s0, s1]
         offset = 0
         for n in range(self.node_num):
-            s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            #s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            s = self.conv1x1(torch.cat([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])], dim=1))
             offset += 2
             states.append(s)
         return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
@@ -386,8 +389,10 @@ class RCellNSkipOld(nn.Module):
                 stride = 2 if self.genotype_states_idx[n][e] < 2 else 1
                 self.edges.append(EvalEdge(C, stride, [genotype['ops'][i]], 'r', affine, binary,padding_mode=padding_mode,jit=jit, binarization=binarization,activation=activation))
                 i+=1
-        self.sum = EvalSum()
+        #self.sum = EvalSum()
         self.cat = EvalCat()
+        self.conv1x1 = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
+
 
     def forward(self, input0, input1):
         s0 = self.preprocess0(input0)
@@ -395,7 +400,8 @@ class RCellNSkipOld(nn.Module):
         states = [s0, s1]
         offset = 0
         for n in range(self.node_num):
-            s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            #s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            s = self.conv1x1(torch.cat([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])], dim=1))            
             offset += 2
             states.append(s)
         return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
@@ -436,8 +442,9 @@ class UCellNSkipOld(nn.Module):
                 stride = 2 if self.genotype_states_idx[n][e] < 2 else 1
                 self.edges.append(EvalEdge(C, stride, [genotype['ops'][i]], 'u', affine, binary,padding_mode=padding_mode,jit=jit, binarization=binarization,activation=activation))
                 i+=1
-        self.sum = EvalSum()
+        #self.sum = EvalSum()
         self.cat = EvalCat()
+        self.conv1x1 = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
 
     def forward(self, input0, input1):
         s0 = self.preprocess0(input0)
@@ -445,7 +452,8 @@ class UCellNSkipOld(nn.Module):
         states = [s0, s1]
         offset = 0
         for n in range(self.node_num):
-            s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            #s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            s = self.conv1x1(torch.cat([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])], dim=1))            
             offset += 2
             states.append(s)
         return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
@@ -478,8 +486,8 @@ class LastLayer(nn.Module):
                 )
         else:
             self.layers = nn.Sequential(
-                nn.Conv2d(in_channels, classes_num, kernel_size),
-                nn.BatchNorm2d(classes_num, affine=affine)
+                nn.Conv2d(in_channels, classes_num, kernel_size, padding=kernel_size//2)
+                #nn.BatchNorm2d(classes_num, affine=affine)
             )
     def forward(self, x):
         x = self.layers(x)

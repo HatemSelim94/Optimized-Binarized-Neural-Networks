@@ -23,7 +23,7 @@ binarize = Binarization1.apply
 
 
 class Conv(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size, stride, padding, dilation=(1, 1), groups=1, bias=False):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=(1, 1), groups=1, bias=False):
         super().__init__()
 
         self.conv = nn.Conv2d(in_channels, out_channels, kernel_size=kernel_size,
@@ -107,13 +107,13 @@ class BottleNeck(nn.Module):
         else:
             self.conv1 = Conv(in_channels, inter_channels, 1, bias=False)
         self.bn1 = nn.BatchNorm2d(inter_channels)
-        self.prelu1 = nn.PReLU() if use_prelu else nn.ReLU(inplace=True)
+        #self.prelu1 = nn.PReLU() if use_prelu else nn.ReLU(inplace=True)
 
         if asymetric:
             self.conv2 = nn.Sequential(
                 Conv(inter_channels, inter_channels, kernel_size=(1,5), padding=(0,2)),
                 nn.BatchNorm2d(inter_channels),
-                nn.PReLU() if use_prelu else nn.ReLU(inplace=True),
+                #nn.PReLU() if use_prelu else nn.ReLU(inplace=True),
                 Conv(inter_channels, inter_channels, kernel_size=(5,1), padding=(2,0)),
             )
         elif upsample:
@@ -122,14 +122,14 @@ class BottleNeck(nn.Module):
         else:
             self.conv2 = Conv(inter_channels, inter_channels, 3, padding=dilation, dilation=dilation, bias=False)
         self.bn2 = nn.BatchNorm2d(inter_channels)
-        self.prelu2 = nn.PReLU() if use_prelu else nn.ReLU(inplace=True)
+        #self.prelu2 = nn.PReLU() if use_prelu else nn.ReLU(inplace=True)
 
         self.conv3 = Conv(inter_channels, out_channels, 1, bias=False)
         self.bn3 = nn.BatchNorm2d(out_channels)
-        self.prelu3 = nn.PReLU() if use_prelu else nn.ReLU(inplace=True)
+        #self.prelu3 = nn.PReLU() if use_prelu else nn.ReLU(inplace=True)
 
         self.regularizer = nn.Dropout2d(p_drop) if regularize else None
-        self.prelu_out = nn.PReLU() if use_prelu else nn.ReLU(inplace=True)
+        #self.prelu_out = nn.PReLU() if use_prelu else nn.ReLU(inplace=True)
 
     def forward(self, x, indices=None, output_size=None):
         # Main branch
@@ -159,13 +159,13 @@ class BottleNeck(nn.Module):
         # Bottleneck
         x = self.conv1(x)
         x = self.bn1(x)
-        x = self.prelu1(x)
+        #x = self.prelu1(x)
         x = self.conv2(x)
         x = self.bn2(x)
-        x = self.prelu2(x)
+        #x = self.prelu2(x)
         x = self.conv3(x)
         x = self.bn3(x)
-        x = self.prelu3(x)
+        #x = self.prelu3(x)
         if self.regularizer is not None:
             x = self.regularizer(x)
 
@@ -175,7 +175,7 @@ class BottleNeck(nn.Module):
             x = F.pad(x, pad, "constant", 0)
 
         x += identity
-        x = self.prelu_out(x)
+        #x = self.prelu_out(x)
 
         if self.downsample:
             return x, idx
@@ -226,7 +226,7 @@ class BinENet(nn.Module):
         # Stage 6
         self.fullconv = TConv(16, num_classes, kernel_size=3, padding=1,
                                             output_padding=1, stride=2, bias=False)
-        self.scale = Scale_2d(16)
+        self.scale = Scale_2d(num_classes)
 
     def forward(self, x):
         x = self.initial(x)

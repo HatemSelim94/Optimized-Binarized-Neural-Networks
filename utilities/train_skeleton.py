@@ -349,12 +349,13 @@ def train_kd_v2(train_queue, model, teacher_model, criterion, optimizer, num_of_
     optimizer.zero_grad()
     
     student_output, student_intermediate_outputs = model(imgs)
-    _, teacher_intermediate_outputs = teacher_model(imgs)
+    teacher_output, teacher_intermediate_outputs = teacher_model(imgs)
     #torch.use_deterministic_algorithms(False)
     student_loss = criterion(student_output, trgts).mean()
     #teacher_loss = criterion(teacher_output, trgts)
-    kd_loss = sum([torch.nn.functional.kl_div(teacher_intermediate_outputs[i], student_intermediate_outputs[i]) for i in range(len(student_intermediate_outputs))])
-    total_loss = student_loss + kd_loss 
+    kd_loss = F.mse_loss(teacher_output, student_output) + sum([torch.nn.functional.mse_loss(student_intermediate_output,teacher_intermediate_output) for student_intermediate_output,teacher_intermediate_output in zip(student_intermediate_outputs, teacher_intermediate_outputs)])
+    print(f'KD loss: {kd_loss:0.2f}')
+    total_loss = student_loss *0 + kd_loss 
     total_loss.backward()
     #torch.use_deterministic_algorithms(True)
     optimizer.step() # [-1, 1] (conv)

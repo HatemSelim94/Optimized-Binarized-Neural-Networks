@@ -73,6 +73,7 @@ parser.add_argument('--channel_expansion_ratio_r', type= float, default=2)
 parser.add_argument('--channel_reduction_ratio_u', type=float, default=14)
 parser.add_argument('--channel_normal_ratio_n',type=float, default=0.25)
 parser.add_argument('--binary_aspp', type=int, default=1)
+parser.add_argument('--use_maxpool',type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 

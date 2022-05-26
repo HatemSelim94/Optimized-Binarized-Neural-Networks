@@ -17,10 +17,10 @@ class BinConvBnHTanh(nn.Module):
     '''
     binarize -> conv -> batchnorm -> hardtanh
     '''
-    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros', jit=False, dropout2d=0.1, binarization=1, activation='htanh'):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding = 0, dilation = 1, affine=True, padding_mode='zeros', jit=False, dropout2d=0.1, binarization=1, activation='htanh', groups=1):
         super(BinConvBnHTanh, self).__init__()
         self.activation_func = activation
-        self.conv = EvalBinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation,padding_mode=padding_mode,jit=jit)
+        self.conv = EvalBinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation,padding_mode=padding_mode,jit=jit, groups=groups)
         self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
         #self.batchnorm = Scale_2d(out_channels)
         if activation =='htanh':
