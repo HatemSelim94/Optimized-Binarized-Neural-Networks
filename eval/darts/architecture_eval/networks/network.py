@@ -38,6 +38,7 @@ class Network(nn.Module):
         self.kd = args.use_kd
         self.binary_aspp = args.binary_aspp
         self.use_maxpool = args.use_maxpool
+        self.merge_type = args.merge_type
 
         # first layer (fp)
         self.first_layer = Stem(out_channels=self.initial_channels, affine=self.affine, activation=self.first_layer_activation, use_maxpool=self.use_maxpool)
@@ -58,11 +59,11 @@ class Network(nn.Module):
             else:
                 continue
             if cell_type =='r':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type] ,self.initial_channels, 2, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit, self.dropout2d,self.binarization, self.activation)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type] ,self.initial_channels, 2, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit, self.dropout2d,self.binarization, self.activation, self.merge_type)
             elif cell_type == 'n':
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type],1,2, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit,self.dropout2d, self.binarization, self.activation)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type],1,2, self.nodes_num, self.binary, self.affine,self.padding_mode, self.jit,self.dropout2d, self.binarization, self.activation,self.merge_type)
             else:
-                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type], 2, self.nodes_num,self.binary, self.affine, self.padding_mode,self.jit,self.dropout2d, self.binarization, self.activation)
+                cell_specs=(c, c_prev_prev, c_prev, prev_cell, self.genotypes[cell_type], 2, self.nodes_num,self.binary, self.affine, self.padding_mode,self.jit,self.dropout2d, self.binarization, self.activation,self.merge_type)
             self.cells.append(NetConstructor.construct(cell_type, cell_specs, self.use_skip, old_ver=self.use_old_ver))
             prev_cell = cell_type
             c_prev_prev = c_prev

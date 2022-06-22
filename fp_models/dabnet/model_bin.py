@@ -23,6 +23,39 @@ class Binarization1(torch.autograd.Function): # Courbariaux, Hubara
         return grad_input
 binarize = Binarization1.apply
 
+class FPConv(nn.Module):
+    def __init__(self, nIn, nOut, kSize, stride, padding, dilation=(1, 1), groups=1, bn_acti=False, bias=False):
+        super().__init__()
+
+        self.bn_acti = bn_acti
+
+        self.conv = nn.Conv2d(nIn, nOut, kernel_size=kSize,
+                              stride=stride, padding=padding,
+                              dilation=dilation, groups=groups, bias=bias)
+
+        if self.bn_acti:
+            self.bn_prelu = BNPReLU(nOut)
+
+    def forward(self, input):
+        output = self.conv(input)
+
+        if self.bn_acti:
+            output = self.bn_prelu(output)
+
+        return output
+
+
+class BNPReLU(nn.Module):
+    def __init__(self, nIn):
+        super().__init__()
+        self.bn = nn.BatchNorm2d(nIn, eps=1e-3)
+        self.acti = nn.PReLU(nIn)
+
+    def forward(self, input):
+        output = self.bn(input)
+        output = self.acti(output)
+
+        return output
 
 class Conv(nn.Module):
     def __init__(self, nIn, nOut, kSize, stride, padding, dilation=(1, 1), groups=1, bn_acti=False, bias=False):
@@ -146,12 +179,12 @@ class InputInjection(nn.Module):
 class DABNetBin(nn.Module):
     def __init__(self, classes=19, block_1=3, block_2=6):
         super().__init__()
-        """ self.init_conv = nn.Sequential(
-            Conv(3, 32, 3, 2, padding=1, bn_acti=True),
+        self.init_conv = nn.Sequential(
+            FPConv(3, 32, 3, 2, padding=1, bn_acti=True),
             Conv(32, 32, 3, 1, padding=1, bn_acti=True),
             Conv(32, 32, 3, 1, padding=1, bn_acti=True),
-        ) """
-        self.init_conv = nn.Sequential(nn.Conv2d(3, 32, 3, stride=2, padding=1, bias=False), BNPReLU(32))
+        ) 
+        #self.init_conv = nn.Sequential(nn.Conv2d(3, 32, 3, stride=2, padding=1, bias=False), BNPReLU(32))
 
         self.down_1 = InputInjection(1)  # down-sample the image 1 times
         self.down_2 = InputInjection(2)  # down-sample the image 2 times

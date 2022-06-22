@@ -13,6 +13,8 @@ from .param_size import params_size_counter
 from .memory_counter import max_mem_counter
 from .latency import calculate_ops_latency, get_latency
 import torch.nn.functional as F
+import logging
+
 
 class DummyScheduler:
     def __init__(self):
@@ -391,7 +393,7 @@ def infer_kd(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
     val_loss /= len(valid_queue.dataset)
     return round(miou*100, 2), val_loss
 
-def infer(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
+def infer(valid_queue, model, criterion, num_of_classes=3, device='cuda', logger=None):
   metric = SegMetrics(num_of_classes)
   model.eval()
   val_loss = 0
@@ -409,10 +411,32 @@ def infer(valid_queue, model, criterion, num_of_classes=3, device='cuda'):
       val_loss += (loss.item() * imgs.shape[0])
       metric.update(trgts.cpu().numpy(), predicted.cpu().numpy())
     miou, class_miou = metric.get_iou()
+    if logger is not None:
+        logger(class_miou)
     print(class_miou)
       #if step % args.report_freq == 0:
     val_loss /= len(valid_queue.dataset)
     return round(miou*100, 2), val_loss
+
+class Logger:
+    classes_2 = {0:'Background', 1:'Road'}
+    classes_3 = {0:'Background', 1:'Road', 2:'Vehicle'}
+    classes_8 = {0:'Void', 1:'Flat',2:'Construction',3:'Object',4:'Nature',5:'Sky',6:'Human', 7:'Vehicle'}
+    def __init__(self, file_path):
+        logging.basicConfig(filename= file_path, filemode='a',format='%(asctime)s :: %(message)s')
+        self.logger = logging.getLogger()
+        self.logger.setLevel(logging.INFO)
+
+    def __call__(self, info):
+        nclass=len(info)
+        if nclass ==3:
+            output = {self.classes_3[key]: val for key, val in info.items()}
+        elif nclass == 8:
+            output = {self.classes_8[key]: val for key, val in info.items()}
+        elif nclass ==2:
+            output = {self.classes_2[key]: val for key, val in info.items()}
+        self.logger.log(logging.INFO,output)
+
 
 class lr_function:
   def __init__(self, epochs):
@@ -646,7 +670,7 @@ def layers_state_setter(net,input=True, weight=True):
 ## This source code is licensed under the MIT-style license found in the
 ## LICENSE file in the root directory of this source tree
 ##+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
+#SBNN
 import math
 
 class LR_Scheduler(object):
@@ -695,7 +719,7 @@ class LR_Scheduler(object):
             self.epoch = epoch
         assert lr >= 0
         self._adjust_learning_rate(lr)
-
+##################################################################################################
     def _adjust_learning_rate(self, lr):
         if len(self.optimizer.param_groups) == 1:
             self.optimizer.param_groups[0]['lr'] = lr
@@ -725,7 +749,8 @@ class BnasScore:
     def get_score(self, model):
         with torch.no_grad():
             miou,_ = infer(self.val_loader, model,self.criterion, self.nclass, self.device) # 0-100
-            fitness = miou  
+            fitness = miou
+            print(f'accuracy: {miou}')
             if self.latency_gamma > 0:
                 latency_ms, _ = get_latency(model, self.input_shape)
                 fitness -= max(latency_ms-self.required_latency_ms, 0)*self.latency_gamma
@@ -733,7 +758,7 @@ class BnasScore:
                 model_size = params_size_counter(model, self.input_shape) # bytes
                 fitness -= max((model_size/1000)-self.required_params_size_kb, 0)*self.params_delta 
             if self.theta_ops > 0:
-                mops = ops_counter(model, self.input_shape)
+                mops, _, _ = ops_counter(model, self.input_shape)
                 fitness -= max(mops-self.required_ops_mops, 0)*self.theta_ops
+            print(f'score:{fitness}')
         return fitness
-

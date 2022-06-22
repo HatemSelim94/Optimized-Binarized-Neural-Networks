@@ -33,6 +33,13 @@ class Timer:
     def __repr__(self):
         return str(f'{self.time/60:.2f} min')
 
+
+class RoadMetrics():
+    def __init__(self, n_cls=2):
+        self.n_classes
+        
+
+
 #https://github.com/VainF/DeepLabV3Plus-Pytorch/blob/master/metrics/stream_metrics.py
 class SegMetrics():
     """
@@ -146,6 +153,28 @@ class SegMetrics():
     
     def reset(self):
         self.confusion_matrix = np.zeros((self.n_classes, self.n_classes))
+
+# ROAD
+
+def confusion_matrix(x, y, n, ignore_label=None, mask=None):
+    if mask is None:
+        mask = np.ones_like(x) == 1
+    k = (x >= 0) & (y < n) & (x != ignore_label) & (mask.astype(np.bool))
+    return np.bincount(n * x[k].astype(int) + y[k], minlength=n**2).reshape(n, n)
+
+def getScores(conf_matrix):
+    if conf_matrix.sum() == 0:
+        return 0, 0, 0, 0, 0
+    with np.errstate(divide='ignore',invalid='ignore'):
+        globalacc = np.diag(conf_matrix).sum() / np.float(conf_matrix.sum())
+        classpre = np.diag(conf_matrix) / conf_matrix.sum(0).astype(np.float)
+        classrecall = np.diag(conf_matrix) / conf_matrix.sum(1).astype(np.float)
+        IU = np.diag(conf_matrix) / (conf_matrix.sum(1) + conf_matrix.sum(0) - np.diag(conf_matrix)).astype(np.float)
+        pre = classpre[1]
+        recall = classrecall[1]
+        iou = IU[1]
+        F_score = 2*(recall*pre)/(recall+pre)
+    return globalacc, pre, recall, F_score, iou
     
 if __name__ == '__main__':
     import torch

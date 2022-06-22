@@ -8,22 +8,22 @@
 #stem channels 40
 #final_darts_full_3c_2
 # merge_type ['sum','conv']
-python eval/darts/run.py --data_name 'cityscapes' \
---batch_size 16 --image_size 448 --num_of_classes 8 --train_subset 1500 --val_subset 500 \
+python eval/darts/run_road.py --batch_size 6 --num_of_classes 2 \
+--image_size_w 1280 --image_size_h 384 \
 --epochs 100 --network_optim 'Adam' --network_optim_bin_lr 1e-3 --network_optim_fp_lr 1e-4 \
 --network_optim_fp_weight_decay 5e-2 --network_optim_bin_betas 0.9 --network_sequence 'r,r,r,n,n,u' \
---stem_channels 60 --nodes_num 4 --edge_num 2 \
---experiment_path 'eval/darts/experiments/' --experiment_name 'cityscapes_8_cls_4_n' --device 'cuda' \
+--stem_channels 40 --nodes_num 4 --edge_num 2 \
+--experiment_path 'eval/darts/sub_experiments/' --experiment_name 'road_test_4' --device 'cuda' \
 --seed 4 --affine 1 --binary 1 --last_layer_binary 1 --last_layer_kernel_size 3 \
---genotype_path 'search/darts/experiments/' --search_exp_name 'final_darts_full_3c_2' --generate_jit 1 --generate_onnx 1 \
+--genotype_path 'search/darts/experiments/' --search_exp_name 'final_darts_full_3c_2' --generate_jit 0 --generate_onnx 0 \
 --padding_mode 'zeros' --dropout2d_prob 0.01 --network_type 'cells' --binarization 1 --use_skip 0 \
 --activation 'htanh' --first_layer_activation 'htanh' --step_two 0 --seaborn_style 0 --use_old_ver 1 \
---channel_expansion_ratio_r 0.75 --channel_reduction_ratio_u 4 --channel_normal_ratio_n 0.25 \
+--channel_expansion_ratio_r 0.5 --channel_reduction_ratio_u 4 --channel_normal_ratio_n 0.25 \
 --poly_scheduler 0 --lr_auto 0 --decay_val 0.5 --decay_step 10  --binary_aspp 1 --use_weights 1 \
 --load_model 0 --load_experiment_name 'darts_full_3c_final_2_binary_long' --upsample_mode 'bilinear' \
 --use_maxpool 0 --merge_type 'sum'
 
-exp_path='eval/darts/experiments/'
-exp_name='cityscapes_8_cls_4_n'
+exp_path='eval/darts/sub_experiments/'
+exp_name='road_test_4'
 exp_path+=$exp_name
-cp run_darts_eval.bash $exp_path
+cp run_road.bash $exp_path

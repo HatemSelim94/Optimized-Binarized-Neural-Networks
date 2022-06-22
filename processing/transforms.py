@@ -33,7 +33,7 @@ class Compose:
     def __init__(self, transforms):
         self.transforms = transforms
 
-    def __call__(self, image, target):
+    def __call__(self, image, target=None):
         for t in self.transforms:
             image, target = t(image, target)
         return image, target
@@ -139,7 +139,7 @@ class Resize:
     def __init__(self, size) -> None:
         self.size = size
     
-    def __call__(self, image, target):
+    def __call__(self, image, target=None):
         image = F.resize(image, self.size, interpolation=F.InterpolationMode.BILINEAR)
         if target is not None:
             target = F.resize(target, self.size, interpolation=F.InterpolationMode.NEAREST)

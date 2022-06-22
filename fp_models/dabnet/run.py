@@ -59,8 +59,8 @@ def main():
     criterion = nn.CrossEntropyLoss(ignore_index = CityScapes.ignore_index,weight=classes_weights, reduction='none')
     criterion = criterion.to(args.device)
     if args.binary:
-        #net = BinNetwork(classes=args.num_of_classes).to(args.device)
-        net = BinENet(num_classes=args.num_of_classes).to(args.device)
+        net = BinNetwork(classes=args.num_of_classes).to(args.device)
+        #net = BinENet(num_classes=args.num_of_classes).to(args.device)
     else:  
         net = Network(classes=args.num_of_classes).to(args.device)
     #net._set_criterion(criterion)

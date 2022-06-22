@@ -322,7 +322,7 @@ class UCellNSkip(nn.Module):
 ###################################################################
 # old ver Darts
 class NCellNSkipOld(nn.Module):
-    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,skip_ch,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1,activation='htanh') :
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,skip_ch,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1,activation='htanh', merge_type='sum') :
         super(NCellNSkipOld, self).__init__()
         self.edges_num = edges_num
         self.node_num = node_num
@@ -331,6 +331,7 @@ class NCellNSkipOld(nn.Module):
         self.preprocess1 = prprocess.operations(prev_cell_type,1,C_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d, binarization=binarization,activation=activation)
         self.edges = nn.ModuleList()
         self.binary = binary
+        self.merge_type = merge_type
         i=0
         self.genotype_states_idx = genotype['states']
         for n in range(node_num):
@@ -339,16 +340,22 @@ class NCellNSkipOld(nn.Module):
                 i+=1
         #self.sum = EvalSum()
         self.cat = EvalCat()
-        self.conv1x1 = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
-
+        #self.conv1x1 = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
+        if merge_type=='sum':
+            self.merge = EvalSum()
+        elif merge_type == 'conv':
+            self.merge = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
+        #elif merge_type == 'cat':
     def forward(self, input0, input1):
         s0 = self.preprocess0(input0)
         s1 = self.preprocess1(input1)
         states = [s0, s1]
         offset = 0
         for n in range(self.node_num):
-            #s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
-            s = self.conv1x1(torch.cat([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])], dim=1))
+            if self.merge_type == 'sum':
+                s = self.merge([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            else:
+                s = self.merge(torch.cat([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])], dim=1))
             offset += 2
             states.append(s)
         return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
@@ -373,7 +380,7 @@ class NCellNSkipOld(nn.Module):
 
 
 class RCellNSkipOld(nn.Module):
-    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,skip_channels,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1,activation='htanh') :
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,skip_channels,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1,activation='htanh', merge_type='sum') :
         super(RCellNSkipOld, self).__init__()
         self.edges_num = edges_num
         self.node_num = node_num
@@ -382,6 +389,7 @@ class RCellNSkipOld(nn.Module):
         self.preprocess1 = prprocess.operations(prev_cell_type,1,C_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d, binarization=binarization,activation=activation)
         self.edges = nn.ModuleList()
         self.binary = binary
+        self.merge_type = merge_type
         i=0
         self.genotype_states_idx = genotype['states']
         for n in range(node_num):
@@ -391,8 +399,11 @@ class RCellNSkipOld(nn.Module):
                 i+=1
         #self.sum = EvalSum()
         self.cat = EvalCat()
-        self.conv1x1 = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
-
+        #self.conv1x1 = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
+        if merge_type=='sum':
+            self.merge = EvalSum()
+        elif merge_type == 'conv':
+            self.merge = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
 
     def forward(self, input0, input1):
         s0 = self.preprocess0(input0)
@@ -400,8 +411,10 @@ class RCellNSkipOld(nn.Module):
         states = [s0, s1]
         offset = 0
         for n in range(self.node_num):
-            #s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
-            s = self.conv1x1(torch.cat([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])], dim=1))            
+            if self.merge_type == 'sum':
+                s = self.merge([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            else:
+                s = self.merge(torch.cat([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])], dim=1))            
             offset += 2
             states.append(s)
         return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"
@@ -426,7 +439,7 @@ class RCellNSkipOld(nn.Module):
 
 
 class UCellNSkipOld(nn.Module):
-    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1,activation='htanh') :
+    def __init__(self,C, C_prev_prev, C_prev, prev_cell_type, genotype,edges_num=2, node_num=4,binary=True, affine=True,padding_mode='zeros', jit=False,dropout2d=0.1, binarization=1,activation='htanh', merge_type='sum') :
         super(UCellNSkipOld, self).__init__()
         self.edges_num = edges_num
         self.node_num = node_num
@@ -435,6 +448,7 @@ class UCellNSkipOld(nn.Module):
         self.preprocess1 = prprocess.operations(prev_cell_type,1,C_prev, C, affine, padding_mode=padding_mode, jit=jit,dropout2d=dropout2d, binarization=binarization,activation=activation)
         self.edges = nn.ModuleList()
         self.binary = binary
+        self.merge_type = merge_type
         i=0
         self.genotype_states_idx = genotype['states']
         for n in range(node_num):
@@ -444,7 +458,11 @@ class UCellNSkipOld(nn.Module):
                 i+=1
         #self.sum = EvalSum()
         self.cat = EvalCat()
-        self.conv1x1 = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
+        #self.conv1x1 = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
+        if merge_type=='sum':
+            self.merge = EvalSum()
+        elif merge_type == 'conv':
+            self.merge = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
 
     def forward(self, input0, input1):
         s0 = self.preprocess0(input0)
@@ -452,8 +470,10 @@ class UCellNSkipOld(nn.Module):
         states = [s0, s1]
         offset = 0
         for n in range(self.node_num):
-            #s = self.sum([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
-            s = self.conv1x1(torch.cat([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])], dim=1))            
+            if self.merge_type== 'sum':
+                s = self.merge([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])]) #offset +j = 2
+            else:
+                s = self.merge(torch.cat([self.edges[offset+j](h) for j,h in  enumerate([states[self.genotype_states_idx[n][0]], states[self.genotype_states_idx[n][1]]])], dim=1))            
             offset += 2
             states.append(s)
         return self.cat(states[-(self.node_num):]) # channels number is multiplier "4" * C "C_curr"

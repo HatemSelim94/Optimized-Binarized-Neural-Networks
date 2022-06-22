@@ -1,7 +1,8 @@
-from processing import DataSets, Transformer
+from processing import DataSets, Transformer, KittiRoad
 import numpy as np
 import torch
 from torch.utils.data import Subset
+
 def cls_weight():
     no_of_classes = 8
     dataset_name = 'cityscapes'
@@ -28,7 +29,28 @@ def cls_weight():
         w_class.append(1/np.log(w_c+k))
     print(w_class)
     
-    
+def cls_weight_kitti_road():
+    dataset = KittiRoad()
+    weights = [0]* 2
+    for i in range(len(dataset)):
+        _, label = dataset[i]
+        mask1= label ==0
+        mask2 = label ==1
+        mask = torch.logical_or(mask1, mask2)
+        label = label[mask]
+        classes = torch.unique(label)
+        for c in classes:
+            weights[c] += torch.sum(label==c)
+    ws = []
+    w_class = []
+    k = 1.12
+    total_labels = sum(weights)
+    for w in weights:
+        ws.append(w/total_labels)
+    for w_c in ws:
+        w_class.append(1/np.log(w_c+k))
+    print(w_class)
     
 if __name__ == '__main__':
-    cls_weight()
+    #cls_weight()
+    cls_weight_kitti_road()

@@ -1,11 +1,13 @@
 import matplotlib.pyplot as plt
 import torch
+import torchvision.transforms as VisionTrans
 from torch.utils.data import Dataset
 import os
 from PIL import Image
 import numpy as np
 import shutil
-
+import cv2
+import random 
 from .data_utils import decode_segmap
 from .transforms import ToTensor
 from .helpers import labels
@@ -44,11 +46,12 @@ class KittiDataset(Dataset):
         self.save_annotation = save_annotation
         self.images = []
         self.targets = []
+        self.train= train
         if train:
             self.location = 'training/'
         else:
             self.location = 'testing/'
-            raise NotImplemented # (kitti)useful only for submission as it has no labels
+            #raise NotImplemented # (kitti)useful only for submission as it has no labels
         
         if download:
             self._download()
@@ -56,13 +59,16 @@ class KittiDataset(Dataset):
         self.images_dir = os.path.join(self.dataset_path, self.location ,self.image_dir_name)
         self.targets_dir= os.path.join(self.dataset_path, self.location, self.label_dir_name)
         
-        if save_annotation:
-            self._save_annotation() # changes self.targets_dir
-        
-        for img_file in os.listdir(self.images_dir):
-            self.images.append(os.path.join(self.images_dir, img_file))
-            self.targets.append(os.path.join(self.targets_dir, img_file))
-        
+        if train:
+            if save_annotation:
+                self._save_annotation() # changes self.targets_dir
+        if train:
+            for img_file in os.listdir(self.images_dir):
+                self.images.append(os.path.join(self.images_dir, img_file))
+                self.targets.append(os.path.join(self.targets_dir, img_file))
+        else:
+            for img_file in os.listdir(self.images_dir):
+                self.images.append(os.path.join(self.images_dir, img_file))
             
     def __len__(self):
         return len(self.images)
@@ -79,15 +85,21 @@ class KittiDataset(Dataset):
         """
         # torchvision.io.read_image outputs a tensor (channel * h * w) in  range [0, 255] 
         # torchvision.io has some dependency problems(not stable)
-        image = Image.open(self.images[index])
-        label = Image.open(self.targets[index])
-        if not self.save_annotation:
-            if self.no_of_classes !=34:
-                label = self._change_annotation(np.array(label).astype(np.int16)) # int16: there is a -1 label (ignored label) 
+        if self.train:
+            image = Image.open(self.images[index])
+            label = Image.open(self.targets[index])
+            if not self.save_annotation:
+                if self.no_of_classes !=34:
+                    label = self._change_annotation(np.array(label).astype(np.int16)) # int16: there is a -1 label (ignored label) 
 
-        if self.transforms:
-            image, label = self.transforms(image, label)
-        return image, label, index
+            if self.transforms:
+                image, label = self.transforms(image, label)
+            return image, label, index
+        else:
+            image = Image.open(self.images[index])
+            if self.transforms:
+                image, _= self.transforms(image)
+            return image, index
             
     def _download(self):
         raise NotImplementedError
@@ -137,6 +149,217 @@ class KittiDataset(Dataset):
 
         else:
             self.targets_dir = new_dir_path
+
+    def convert_to_orig_ids(self, pred, id, ncls = 20,save=True, save_dir=None):
+        '''
+        label: label is a tensor on cpu
+        kitti2015_results
+        '''
+        if pred is not None:
+            if ncls ==20:
+                for label in reversed(labels):
+                    if label.trainId >18 or label.trainId<0:
+                        continue 
+                    pred[pred == label.trainId] = label.id
+        if save:
+            image_name = self.images[id].split('/')
+            print(image_name[-1])
+            pred_image = pred.numpy().astype(np.uint8)
+            pred_img = Image.fromarray(pred_image)
+            os.makedirs(os.path.join(save_dir,'semantic'),exist_ok=True)
+            pred_img.save(os.path.join(save_dir,'test_semantic',"Kitti2015_"+image_name[-1]))
+
+        
+class KittiRoad(Dataset):
+    #label map {background:0, road: 1, ignore:255}
+    ignore_index = 255
+    mean = [0.379, 0.4, 0.386]
+    std = [0.309, 0.319, 0.329]
+    weights = torch.tensor([1.5084, 3.8176])
+    def __init__(self, transforms=ToTensor(), dataset_path='data/data_road/', split='train'):
+        #types = ['um_lane_', 'umm_road_','um_road_','uu_road_']
+        self.labels_folder = 'gt_image_2'
+        self.images_folder = 'image_2'
+        self.transforms = transforms
+        self.dataset_path = dataset_path
+        self.split = split
+        self.images = []
+        self.labels = []
+        self.pred_names = []
+        if split == 'train':
+            self.phase = 'training'
+        elif split == 'test':
+            self.phase = 'testing'
+        self.images_dir = os.path.join(self.dataset_path, self.phase,self.images_folder)
+        if split =='train':
+            self.labels_dir = os.path.join(self.dataset_path, self.phase, self.labels_folder)
+        for img_file in os.listdir(self.images_dir):
+            img_name = img_file.split('.')[0]
+            self.images.append(os.path.join(self.images_dir, img_name+'.png'))
+            temp = img_name.split('_')
+            temp.insert(1, 'road')
+            label_name = '_'.join(temp)
+            if split == 'train':
+                self.labels.append(os.path.join(self.labels_dir, label_name+'.png'))
+            else:
+                self.pred_names.append(label_name+'.png')
+        self.images = sorted(self.images)
+        if split == 'train':
+            self.labels = sorted(self.labels)
+        elif split == 'test':
+            self.pred_names = sorted(self.pred_names)
+
+    def __getitem__(self, index):
+        image = Image.open(self.images[index])
+        w, h = image.size
+        if self.split == 'train':
+            label_rgb = Image.open(self.labels[index])
+            label_array_rgb = np.array(label_rgb)
+            label = np.zeros(label_array_rgb.shape[:2], np.uint8) + 255
+            label[label_array_rgb[:,:,2] > 0] = 1 # road
+            label[(label_array_rgb[:,:,0] > 0) & (label_array_rgb[:,:,2] == 0)] = 0
+            label = Image.fromarray(label)
+            if self.transforms:
+                image, label = self.transforms(image, label)
+            return image, label,0
+        else:
+            img_name = self.pred_names[index]
+            if self.transforms:
+                image,_ = self.transforms(image)
+            return image,img_name, w,h
+
+    def __len__(self):
+        return len(self.images)
+
+# https://github.com/zhechen/PLARD/blob/master/ptsemseg/loader/kitti_road_loader.py
+def recursive_glob(rootdir='.', suffix=''):
+    """Performs recursive glob with given suffix and rootdir 
+        :param rootdir is the root directory
+        :param suffix is the suffix to be searched
+    """
+    return [os.path.join(looproot, filename)
+        for looproot, _, filenames in os.walk(rootdir)
+        for filename in filenames if filename.endswith(suffix)]
+
+class KITTIRoadLoader(Dataset):
+    """KITTI Road Dataset Loader
+    http://www.cvlibs.net/datasets/kitti/eval_road.php
+    Data is derived from KITTI
+    label map {background:0, road: 1, ignore:255}
+    """
+    mean_rgb = [103.939, 116.779, 123.68] # pascal mean for PSPNet and ICNet pre-trained model
+
+    def __init__(self, root='data/data_road', split="train", is_transform=False, 
+                 img_size=(1280, 384), augmentations=None, version='pascal', phase='train'):
+        """__init__
+        :param root:
+        :param split:
+        :param is_transform: (not used)
+        :param img_size: (not used)
+        :param augmentations  (not used)
+        """
+        self.ignore_val = 255
+        self.root = root
+        self.split = split
+        self.is_transform = is_transform
+        self.augmentations = augmentations
+        self.n_classes = 2
+        self.img_size = img_size 
+        self.mean = np.array(self.mean_rgb)
+        self.files = {}
+        self.hflip = VisionTrans.RandomHorizontalFlip(p=0)
+        if phase == 'train':
+            self.images_base = os.path.join(self.root, 'training', 'image_2')
+            self.lidar_base = os.path.join(self.root, 'training', 'ADI')
+            self.annotations_base = os.path.join(self.root, 'training', 'gt_image_2')
+            self.im_files = recursive_glob(rootdir=self.images_base, suffix='.png')
+        else:
+            self.images_base = os.path.join(self.root, 'testing', 'image_2')
+            self.lidar_base = os.path.join(self.root, 'testing', 'ADI')
+            self.annotations_base = os.path.join(self.root, 'testing', 'gt_image_2')
+            self.split = 'test'
+
+            self.im_files = recursive_glob(rootdir=self.images_base, suffix='.png')
+            self.im_files = sorted(self.im_files)
+
+        self.data_size = len(self.im_files)
+        self.phase = phase
+
+        print("Found %d %s images" % (self.data_size, self.split))
+
+    def __len__(self):
+        """__len__"""
+        return self.data_size
+
+    def im_paths(self):
+        return self.im_files
+
+    def __getitem__(self, index):
+        """__getitem__
+        :param index:
+        """
+        img_path = self.im_files[index].rstrip()
+        im_name_splits = img_path.split(os.sep)[-1].split('.')[0].split('_')
+        img_name = img_path.split(os.sep)[-1].split('.')[0]
+
+        img = cv2.imread(img_path)
+        img = np.array(img, dtype=np.uint8)
+
+        #lidar = cv2.imread(os.path.join(self.lidar_base, im_name_splits[0] + '_' + im_name_splits[1] + '.png'), cv2.IMREAD_UNCHANGED)
+        #lidar = np.array(lidar, dtype=np.uint8)
+
+        if self.phase == 'train':
+            lbl_path = os.path.join(self.annotations_base,
+                                    im_name_splits[0] + '_road_' + im_name_splits[1] + '.png')
+
+            lbl_tmp = cv2.imread(lbl_path, cv2.IMREAD_UNCHANGED) # bgr
+            lbl_tmp = np.array(lbl_tmp, dtype=np.uint8)
+            # gt color (rgb) : red (255 r, 0 g, 0 b) , pink (255 r, 0 g, 255 b), black (0 r, 0 g, 0 b)
+            
+            # gt color (bgr): red ( 0 b, 0 g, 255 r) , pink (255 b, 0 g, 255 r), black (0 b, 0 g, 0 r)
+            lbl = 255 + np.zeros( (img.shape[0], img.shape[1]), np.uint8) # All pixels are white (white 255) (loss ignore)
+            lbl[lbl_tmp[:,:,0] > 0] = 1  # now road pixels are set to one 
+            lbl[(lbl_tmp[:,:,2] > 0) & (lbl_tmp[:,:,0] == 0)] = 0 # (valid) and (red) set to 0 (background)
+            # label map {background:0, road: 1, ignore:255}
+            #img, lidar, lbl = self.transform(img, lidar, lbl)
+            img, lbl = self.transform(img, lbl)
+
+            return img, lbl, img_name
+        else:
+            tr_img = img.copy()
+            #tr_lidar = lidar.copy()
+            #tr_img, tr_lidar = self.transform(tr_img, tr_lidar)
+            tr_img = self.transform(tr_img)
+    
+            return img, tr_img
+
+    def transform(self, img, lbl=None):
+        """transform
+        :param img:
+        :param lbl:
+        """
+        img = img.astype(np.float64)
+        img -= self.mean
+
+        #lidar = lidar.astype(np.float64) / 128.
+        #lidar = lidar - np.mean(lidar[lidar>0]) 
+
+        img = cv2.resize(img, self.img_size)
+        # NHWC -> NCHW
+        img = img.transpose(2, 0, 1)
+        img = torch.from_numpy(img).float()
+        img = self.hflip(img)
+        #lidar = cv2.resize(lidar, self.img_size)
+        #lidar = lidar[np.newaxis, :, :] 
+        #lidar = torch.from_numpy(lidar).float()
+
+        if lbl is not None:
+            lbl = cv2.resize(lbl, (int(self.img_size[1]), int(self.img_size[0])), interpolation=cv2.INTER_NEAREST)
+            lbl = torch.from_numpy(lbl).long()
+            lbl = self.hflip(lbl)
+            return img, lbl
+        else:
+            return img
 
 
 
@@ -320,6 +543,37 @@ class DataSets:
         
         plt.clf()
         plt.close('all')
+    
+    @staticmethod
+    def to_orig_size(w,h, pred):
+        if torch.is_tensor(pred):
+            pred = pred.cpu().numpy()
+        pred = cv2.resize(pred, (w,h), 0,0,interpolation=cv2.INTER_NEAREST)
+        return pred
+    
+    @staticmethod
+    def save_pred(w,h,pred,name,path):
+        result_path = os.path.join(path, name)
+        if torch.is_tensor(pred):
+            pred = pred.cpu().numpy()
+        pred = cv2.resize(pred, (w,h), 0,0,interpolation=cv2.INTER_NEAREST)
+        cv2.imwrite(result_path, pred)
+    
+    @staticmethod
+    def save_as_prob(w,h, output,name, path):
+        os.makedirs(path, exist_ok=True)
+        result_path = os.path.join(path, name[0])
+        if torch.is_tensor(output):
+            output = torch.softmax(output, dim=1)
+            output = output[0][1].cpu().numpy()
+            prob = np.floor(255* (output - output.min()) / (output.max() - output.min()))
+            prob = np.array(prob).astype(np.uint8)
+            #print('prob_shape',prob.shape)
+            prob = cv2.resize(prob, (int(w),int(h)),interpolation=cv2.INTER_LINEAR)
+            cv2.imwrite(result_path, prob)
+
+
+
 
         
 
