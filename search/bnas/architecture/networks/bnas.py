@@ -140,14 +140,19 @@ class BnasEdge:
     
     def create_scores(self):
         self.scores = {id:[0 for _ in range(self.t_no)] for id in self.worst_primitives_idx}
-    
+        self.latency = {id:[0 for _ in range(self.t_no)] for id in self.worst_primitives_idx}
+        self.bops = {id:[0 for _ in range(self.t_no)] for id in self.worst_primitives_idx}
+        self.size = {id:[0 for _ in range(self.t_no)] for id in self.worst_primitives_idx}
     def reduce_space(self):
         #print(self.scores)
         self.update_selection()
         self.abandon_worst_primitive()
 
-    def update_score(self, sample, t, score):
+    def update_score(self, sample, t, score, latency=0, bops=0,size=0):
         self.scores[sample[0]][t] = score 
+        self.latency[sample[0][t]] = latency
+        self.bops[sample[0][t]] = bops
+        self.size[sample[0][t]] = size
     
 
     def update_selection(self):

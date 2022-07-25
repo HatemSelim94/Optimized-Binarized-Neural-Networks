@@ -1,6 +1,6 @@
 import numpy as np
 
-
+from .helpers import labels, category2labels
 import pandas as pd
 import seaborn as sns
 
@@ -118,6 +118,46 @@ class SegMetrics():
                 "Class IoU": cls_iou,
                 "Dice Coefficient": avg_dice
             }
+    def get_road_metrics(self):
+        classes= {'Background':0, 'Road':1}
+        hist = self.confusion_matrix
+        with np.errstate(divide='ignore', invalid='ignore'):
+            pre = np.diag(hist)/hist.sum(axis=0)
+            pre = pre[classes['Road']] 
+            rec = np.diag(hist)/hist.sum(axis=1)
+            rec = rec[classes['Road']]
+            f1_score = 2*(pre*rec)/(pre+rec)
+            iou = np.diag(hist) / (hist.sum(axis=1) + hist.sum(axis=0) - np.diag(hist))
+            iou = iou[classes['Road']]
+        return {'Pre':pre, 'Rec':rec, 'F1_score':f1_score, 'iou':iou}
+    
+    def get_labels_iou(self):
+        with np.errstate(divide='ignore', invalid='ignore'):
+            hist = self.confusion_matrix
+            iou = np.diag(hist)/(hist.sum(axis=1) + hist.sum(axis=0) - np.diag(hist))
+            mean_iou = np.nanmean(iou)
+            cls_iou = dict(zip(range(self.n_classes), iou))
+        return cls_iou, mean_iou
+    
+    def get_category_iou(self):
+        catids = {'flat':[0,1],'construction':[2,3,4],'object':[5,6,7],'nature':[8,9],'sky':[10],'human':[11,12],'vehicle':[13,14,15,16,17,18]}
+        cat_iou = {}
+        cat_miou = []
+        with np.errstate(divide='ignore', invalid='ignore'):
+            for cat in catids.keys():
+                lblids = catids[cat]
+                hist = self.confusion_matrix
+                tp = np.longlong(hist[lblids,:][:,lblids].sum())
+                fn = np.longlong(hist[lblids,:].sum()) - tp
+                notIgnoredAndNotInCategory = list(range(self.n_classes))
+                for id in lblids:
+                    notIgnoredAndNotInCategory.remove(id)
+                fp = np.longlong(hist[notIgnoredAndNotInCategory,:][:,lblids].sum())
+                iou = tp/(tp+fp+fn)
+                cat_iou[cat] = iou
+                cat_miou.append(iou)
+        return cat_iou, np.nanmean(cat_miou)
+
     
     def get_iou(self):
         '''

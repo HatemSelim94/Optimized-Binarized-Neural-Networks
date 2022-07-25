@@ -73,9 +73,41 @@ def road_loader_test():
     #ax[1].imshow(lbl.permute(1,0),cmap='gray')
     #plt.show()
 
+def data_testset():
+    test_dataset = CityScapes(no_of_classes=20, split='test')
+    train_dataset = CityScapes(no_of_classes=20,split='val')
+    _, lbl,id = train_dataset[0]
+    print(train_dataset.pred_names[id])
+    print(torch.unique(lbl))
+    print(torch.unique(train_dataset.to_orig_ids(lbl,index=id,save=False)))
+    kitti_test = KittiDataset(no_of_classes=20, train=False)
+    img,id = kitti_test[0]
+    print(kitti_test.pred_names[id])
+    #print(torch.unique(img))
+    #print(torch.unique(train_dataset.to_orig_ids(lbl,index=id,save=False)))
+def test_data_final():
+    kitti_test = KittiDataset(no_of_classes=20, train=False)
+    city_test = CityScapes(no_of_classes=20, split='test')
+    city_img, lbl,id = city_test[0]
+    kitti_img, lbl, id_ki = kitti_test[0]
+    dir = "eval/darts/experiments/"
+    conv = torch.nn.Conv2d(3, 19, 1, padding=0)
+    output_city = torch.argmax(conv(city_img.unsqueeze(0)),dim=1)
+    output_kitti = torch.argmax(conv(kitti_img.unsqueeze(0)),dim=1)
+    #print(output_city.shape)
+    kitti_test.save(output_kitti,id=id_ki,save_dir=os.path.join(dir, 'sub_test'))
+    city_test.save(output_city, id=id, save_dir=os.path.join(dir, 'sub_test'))
+    kitti_val = KittiDataset(no_of_classes=20)
+    city_val = CityScapes(no_of_classes=20,split='val')
+    val_img_city, lbl_city_val, id_val_city = city_val[1]
+    city_val.save(lbl_city_val.unsqueeze(0), id_val_city,save_dir=os.path.join(dir, 'sub_test'))
+    val_img,lbl,id = kitti_val[1]
+    kitti_val.save(lbl.unsqueeze(0),id,save_dir=os.path.join(dir, 'sub_test'))
+
 
 if __name__ == '__main__':
     #test_kitti_test()
     #cityscapes_20()
     #road_loader_test()
-    my_kitti_loader_test()
+    #my_kitti_loader_test()
+    test_data_final()

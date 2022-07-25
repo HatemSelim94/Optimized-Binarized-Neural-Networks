@@ -1,1 +1,0 @@
-python eval/darts/run_submission.py

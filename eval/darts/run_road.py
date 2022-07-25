@@ -10,7 +10,7 @@ import numpy as np
 
 from architecture_eval import Network
 from processing import Transformer, DataSets, KittiRoad, CityScapes  
-from utilities import train, infer, set_seeds, Clipper, DataPlotter, Tracker, model_info, clean_dir, prepare_ops_metrics, jit_save, onnx_save, layers_state_setter, LR_Scheduler, Logger
+from utilities import train_road, infer_road, set_seeds, Clipper, DataPlotter, Tracker, model_info, clean_dir, prepare_ops_metrics, jit_save, onnx_save, layers_state_setter, LR_Scheduler, Logger
 
 parser  = argparse.ArgumentParser('ROAD')
 parser.add_argument('--batch_size', type=int, default=3)
@@ -70,6 +70,7 @@ parser.add_argument('--load_model', type=int, default=0)
 parser.add_argument('--upsample_mode', type=str, default='bilinear')
 parser.add_argument('--use_maxpool', type=int, default=0)
 parser.add_argument('--merge_type', type=str,default='sum')
+parser.add_argument('--optimize_merge', type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
@@ -83,7 +84,7 @@ def main():
         sys.exit(1)
     train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 
                                                     'resize':{'size':[args.image_size_h,args.image_size_w]},
-                                                    'random_horizontal_flip':{'flip_prob':0.2}})
+                                                    'random_horizontal_flip':{'flip_prob':0.5}})
     test_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},
                                                     'resize':{'size':[args.image_size_h,args.image_size_w]}})
     dataset = KittiRoad(transforms=train_transforms) 
@@ -141,6 +142,13 @@ def main():
         bin_params = [p for p in net.parameters() if hasattr(p,'bin')]
         optim_args = [[{'params':fp_params, 'weight_decay':args.network_optim_fp_weight_decay,'lr':args.network_optim_fp_lr},{'params':bin_params, 'weight_decay':0,'lr':args.network_optim_bin_lr, 'betas':[args.network_optim_bin_betas, args.network_optim_bin_betas ]}]]
         optimizer = Clipper.get_clipped_optim(args.network_optim, optim_args)
+    
+    if args.load_model and args.optimize_merge:
+        fp_params = [p for p in net.parameters() if (not hasattr(p,'bin') and hasattr(p,'merge'))]
+        bin_params = [p for p in net.parameters() if (hasattr(p,'bin') and hasattr(p,'merge'))]
+        optim_args = [[{'params':fp_params, 'weight_decay':args.network_optim_fp_weight_decay,'lr':args.network_optim_fp_lr},{'params':bin_params, 'weight_decay':0,'lr':args.network_optim_bin_lr, 'betas':[args.network_optim_bin_betas, args.network_optim_bin_betas ]}]]
+        optimizer = Clipper.get_clipped_optim(args.network_optim, optim_args)
+
     if args.poly_scheduler:
         scheduler= LR_Scheduler(args.epochs,optimizer, len(train_loader))
     else:
@@ -152,12 +160,13 @@ def main():
         layers_state_setter(net, input=True, weight=False) # binarized input, fp weights
     for epoch in range(args.epochs):
         # training
-        train_miou, train_loss = train(train_loader, net, criterion, optimizer, num_of_classes, scheduler=scheduler, epoch=epoch, poly_scheduler=args.poly_scheduler)
-        miou, loss= infer(val_loader, net, criterion, num_of_classes=num_of_classes, logger= logger)
+        train_scores, train_loss = train_road(train_loader, net, criterion, optimizer, num_of_classes, scheduler=scheduler, epoch=epoch, poly_scheduler=args.poly_scheduler)
+        scores, loss= infer_road(val_loader, net, criterion, num_of_classes=num_of_classes, logger= logger)
         if not args.poly_scheduler:
             scheduler.step()
-        tracker.print(train_loss,train_miou, loss, miou, epoch=epoch)
-        data.store(epoch, train_loss, loss, train_miou, miou)
+        tracker.print(train_loss,train_scores['iou'], loss, scores['iou'], epoch=epoch)
+        data.store(epoch, train_loss, loss, train_scores['iou'], scores['iou'])
+        data.store_road_scores(train_scores, scores)
         data.plot(mode='all', save=True, seaborn=args.seaborn_style)
         data.save_as_json()
         if args.step_two:

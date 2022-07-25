@@ -8,22 +8,23 @@
 #stem channels 40
 #final_darts_full_3c_2
 # merge_type ['sum','conv']
-python eval/darts/run_road.py --batch_size 2 --num_of_classes 2 \
+python eval/darts/run_sub.py --data_name 'kitti' \
 --image_size_w 1280 --image_size_h 384 \
---epochs 150 --network_optim 'Adam' --network_optim_bin_lr 1e-3 --network_optim_fp_lr 1e-4 \
+--batch_size 12 --image_size 448 --num_of_classes 19 --train_subset 170 --val_subset 30 \
+--epochs 200 --network_optim 'Adam' --network_optim_bin_lr 1e-3 --network_optim_fp_lr 1e-4 \
 --network_optim_fp_weight_decay 5e-2 --network_optim_bin_betas 0.9 --network_sequence 'r,r,r,n,n,u' \
---stem_channels 30 --nodes_num 4 --edge_num 2 \
---experiment_path 'eval/darts/road_experiments/' --experiment_name 'small_batch_conv' --device 'cuda' \
+--stem_channels 45 --nodes_num 4 --edge_num 2 \
+--experiment_path 'eval/darts/kitti_experiments/' --experiment_name 'kitti_sub_arch_a_sum_test_with_upsample_2' --device 'cuda' \
 --seed 4 --affine 1 --binary 1 --last_layer_binary 1 --last_layer_kernel_size 3 \
 --genotype_path 'search/darts/experiments/' --search_exp_name 'final_darts_full_3c_2' --generate_jit 0 --generate_onnx 0 \
 --padding_mode 'zeros' --dropout2d_prob 0.01 --network_type 'cells' --binarization 1 --use_skip 0 \
 --activation 'htanh' --first_layer_activation 'htanh' --step_two 0 --seaborn_style 0 --use_old_ver 1 \
---channel_expansion_ratio_r 0.5 --channel_reduction_ratio_u 1 --channel_normal_ratio_n 0.25 \
---poly_scheduler 0 --lr_auto 0 --decay_val 0.9 --decay_step 20  --binary_aspp 1 --use_weights 1 \
---load_model 0 --load_experiment_name 'complete_test_sum' --upsample_mode 'bilinear' \
---use_maxpool 0 --merge_type 'conv' --optimize_merge 0
+--channel_expansion_ratio_r 0.75 --channel_reduction_ratio_u 4 --channel_normal_ratio_n 0.25 \
+--poly_scheduler 0 --lr_auto 0 --decay_val 0.5 --decay_step 10  --binary_aspp 1 --use_weights 1 \
+--load_model 0 --load_experiment_name 'kitti_sub_arch_a_test_1' --upsample_mode 'bilinear' \
+--use_maxpool 0 --merge_type 'sum' --train 1
 
-exp_path='eval/darts/road_experiments/'
-exp_name='small_batch_conv'
+exp_path='eval/darts/kitti_experiments/'
+exp_name='kitti_sub_arch_a_sum_test_with_upsample_2'
 exp_path+=$exp_name
-cp run_road.bash $exp_path
+cp run_darts_eval_sub_kitti.bash $exp_path

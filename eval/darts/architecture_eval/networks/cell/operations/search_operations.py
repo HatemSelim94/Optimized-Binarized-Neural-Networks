@@ -142,6 +142,7 @@ class AvgPool(nn.Module):
         self.activation_func = activation
         self.affine = affine
         self.layers = nn.Sequential(
+            BasicBinConv1x1(in_channels, in_channels),
             nn.AvgPool2d(kernel_size, stride, padding)
         )
         if activation == 'relu':
@@ -169,6 +170,7 @@ class MaxPool(nn.Module):
         self.activation_func = activation
         self.affine = affine
         self.layers = nn.Sequential(
+            BasicBinConv1x1(in_channels, in_channels),
             nn.MaxPool2d(kernel_size, stride, padding,dilation)
         )
         if activation == 'relu':

@@ -345,6 +345,7 @@ class NCellNSkipOld(nn.Module):
             self.merge = EvalSum()
         elif merge_type == 'conv':
             self.merge = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
+            self.merge.conv.weight.merge=True
         #elif merge_type == 'cat':
     def forward(self, input0, input1):
         s0 = self.preprocess0(input0)
@@ -404,6 +405,7 @@ class RCellNSkipOld(nn.Module):
             self.merge = EvalSum()
         elif merge_type == 'conv':
             self.merge = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
+            self.merge.conv.weight.merge=True
 
     def forward(self, input0, input1):
         s0 = self.preprocess0(input0)
@@ -463,6 +465,7 @@ class UCellNSkipOld(nn.Module):
             self.merge = EvalSum()
         elif merge_type == 'conv':
             self.merge = BinConv1x1(2*C, C, jit=jit, binarization=binarization, activation=activation, affine=affine)
+            self.merge.conv.weight.merge=True
 
     def forward(self, input0, input1):
         s0 = self.preprocess0(input0)

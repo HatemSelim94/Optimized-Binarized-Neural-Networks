@@ -49,7 +49,8 @@ def decode_segmap(image, no_of_classes=34):
         trainId2label = {label.categoryId: label for label in labels}
     elif modes['custom']== no_of_classes:
         trainId2label = {label.customId: label for label in modified_labels}
-
+    if no_of_classes==20:
+        no_of_classes=19
     for class_id in range(no_of_classes):
         idx = (image == class_id)
         r[idx] = trainId2label[class_id].color[0]

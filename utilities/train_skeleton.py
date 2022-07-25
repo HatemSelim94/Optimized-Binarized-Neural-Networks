@@ -214,6 +214,66 @@ def train(train_queue, model, criterion, optimizer, num_of_classes=3,device='cud
 
   return round(mean_iou*100, 2),train_loss
 
+def train_sub(train_queue, model, criterion, optimizer, num_of_classes=19,device='cuda', scheduler=None, epoch=None, poly_scheduler=None):
+  metric = SegMetrics(num_of_classes)
+  scheduler = scheduler if poly_scheduler else DummyScheduler()
+  train_loss = 0
+  model.train()
+  for step, (imgs, trgts, _) in enumerate(train_queue):
+    imgs = imgs.to(device)
+    trgts = trgts.to(device, non_blocking = True)
+    if poly_scheduler:
+        scheduler(step, epoch)
+    optimizer.zero_grad()
+    outputs = model(imgs)
+    #torch.use_deterministic_algorithms(False)
+    loss = criterion(outputs, trgts).mean()
+    torch.use_deterministic_algorithms(False)
+    loss.backward()
+    torch.use_deterministic_algorithms(True)
+    optimizer.step() # [-1, 1] (conv)
+    train_loss += (loss.item()*imgs.shape[0])
+    with torch.no_grad():
+      predictions = torch.softmax(outputs, dim=1)
+      predictions = torch.argmax(predictions, dim=1)
+    metric.update(trgts.cpu().numpy(), predictions.cpu().numpy())
+  _, mean_miou = metric.get_labels_iou()
+  _, mean_miou_cat = metric.get_category_iou()
+
+  train_loss /= len(train_queue.dataset)
+  return round(mean_miou*100, 2), round(mean_miou_cat*100, 2), train_loss
+
+
+def train_road(train_queue, model, criterion, optimizer, num_of_classes=3,device='cuda', scheduler=None, epoch=None, poly_scheduler=None):
+  metric = SegMetrics(num_of_classes)
+  scheduler = scheduler if poly_scheduler else DummyScheduler()
+  train_loss = 0
+  model.train()
+  for step, (imgs, trgts, _) in enumerate(train_queue):
+    imgs = imgs.to(device)
+    trgts = trgts.to(device, non_blocking = True)
+    if poly_scheduler:
+        scheduler(step, epoch)
+    optimizer.zero_grad()
+    outputs = model(imgs)
+    #torch.use_deterministic_algorithms(False)
+    loss = criterion(outputs, trgts).mean()
+    torch.use_deterministic_algorithms(False)
+    loss.backward()
+    torch.use_deterministic_algorithms(True)
+    optimizer.step() # [-1, 1] (conv)
+    train_loss += (loss.item()*imgs.shape[0])
+    with torch.no_grad():
+      predictions = torch.softmax(outputs, dim=1)
+      predictions = torch.argmax(predictions, dim=1)
+    metric.update(trgts.cpu().numpy(), predictions.cpu().numpy())
+  scores = metric.get_road_metrics()
+  print('Training Scores:')
+  print(scores)
+  train_loss /= len(train_queue.dataset)
+
+  return scores,train_loss
+
 
 import matplotlib.pyplot as plt
 import seaborn as sb
@@ -418,10 +478,66 @@ def infer(valid_queue, model, criterion, num_of_classes=3, device='cuda', logger
     val_loss /= len(valid_queue.dataset)
     return round(miou*100, 2), val_loss
 
+def infer_sub(valid_queue, model, criterion, num_of_classes=3, device='cuda', logger=None):
+  metric = SegMetrics(num_of_classes)
+  model.eval()
+  val_loss = 0
+  with torch.no_grad():
+    for i, (imgs, trgts, _ )in enumerate(valid_queue):
+      imgs = imgs.to(device)
+      trgts = trgts.to(device)
+
+      outputs = model(imgs)
+     #torch.use_deterministic_algorithms(False)
+      loss = criterion(outputs, trgts).mean()
+      #torch.use_deterministic_algorithms(True)
+      outputs = torch.softmax(outputs, dim=1)
+      predicted = torch.argmax(outputs, dim=1)
+      val_loss += (loss.item() * imgs.shape[0])
+      metric.update(trgts.cpu().numpy(), predicted.cpu().numpy())
+    cls_iou, cls_miou = metric.get_labels_iou()
+    cat_iou, cat_miou = metric.get_category_iou()
+    if logger is not None:
+        logger(cls_iou)
+        logger(cat_iou)
+    print(cls_miou)
+      #if step % args.report_freq == 0:
+    val_loss /= len(valid_queue.dataset)
+    return round(cls_miou*100, 2), round(cat_miou*100, 2), val_loss
+
+def infer_road(valid_queue, model, criterion, num_of_classes=3, device='cuda', logger=None):
+  metric = SegMetrics(num_of_classes)
+  model.eval()
+  val_loss = 0
+  with torch.no_grad():
+    for i, (imgs, trgts, _ )in enumerate(valid_queue):
+      imgs = imgs.to(device)
+      trgts = trgts.to(device)
+
+      outputs = model(imgs)
+     #torch.use_deterministic_algorithms(False)
+      loss = criterion(outputs, trgts).mean()
+      #torch.use_deterministic_algorithms(True)
+      outputs = torch.softmax(outputs, dim=1)
+      predicted = torch.argmax(outputs, dim=1)
+      val_loss += (loss.item() * imgs.shape[0])
+      metric.update(trgts.cpu().numpy(), predicted.cpu().numpy())
+    scores = metric.get_road_metrics()
+    if logger is not None:
+        logger(scores)
+    print('Validation Scores')
+    print(scores)
+      #if step % args.report_freq == 0:
+    val_loss /= len(valid_queue.dataset)
+    return scores, val_loss
+
 class Logger:
     classes_2 = {0:'Background', 1:'Road'}
     classes_3 = {0:'Background', 1:'Road', 2:'Vehicle'}
     classes_8 = {0:'Void', 1:'Flat',2:'Construction',3:'Object',4:'Nature',5:'Sky',6:'Human', 7:'Vehicle'}
+    classes_19 = {0:'Road',1:'Sidewalk',2:'Building',3:'Wall',4:'Fence',5:'Pole',6:'Traffic Light',
+                7:'Traffic Sign', 8:'Vegetation',9:'Terrain',10:'Sky',11:'Person',12:'Rider',
+                13:'Car',14:'Truck', 15:'Bus',16:'Train',17:'Motorcycle',18:'Bicycle'}
     def __init__(self, file_path):
         logging.basicConfig(filename= file_path, filemode='a',format='%(asctime)s :: %(message)s')
         self.logger = logging.getLogger()
@@ -433,8 +549,12 @@ class Logger:
             output = {self.classes_3[key]: val for key, val in info.items()}
         elif nclass == 8:
             output = {self.classes_8[key]: val for key, val in info.items()}
-        elif nclass ==2:
-            output = {self.classes_2[key]: val for key, val in info.items()}
+        elif nclass ==19:
+            output = {self.classes_19[key]: val for key, val in info.items()}
+        else:
+            output = info
+            #pass
+            #output = {self.classes_2[key]: val for key, val in info.items()}
         self.logger.log(logging.INFO,output)
 
 
@@ -520,6 +640,8 @@ class DataPlotter:
     __iou_train = 'Training Mean IoU'
     __iou_val = 'Validation Mean IoU'
     __epochs = 'Epochs'
+    __scores_val = 'Validation Scores'
+    __scores_train = 'Training Scores'
     def __init__(self, dir) -> None:
         self.data = {}
         self.data[self.__epochs] = []
@@ -527,6 +649,8 @@ class DataPlotter:
         self.data[self.__iou_val] =[]
         self.data[self.__loss_train] =[]
         self.data[self.__loss_val] =[]
+        self.data[self.__scores_train] = []
+        self.data[self.__scores_val] = [] 
         self.file_path = dir
         self.loaded = False
         if os.path.isfile(dir+'data.json'):
@@ -548,7 +672,10 @@ class DataPlotter:
         self.data[self.__iou_train].append(train_mean_iou)
         self.data[self.__iou_val].append(val_mean_iou)
         self.data[self.__epochs].append(epoch)
-    
+    def store_road_scores(self, train_scores, val_scores):
+        self.data[self.__scores_train].append(train_scores)
+        self.data[self.__scores_val].append(val_scores)
+
     def save_as_json(self):
         if self.loaded:
             with open(os.path.join(self.file_path, '_data_new.json'), 'w', encoding='utf-8') as f:

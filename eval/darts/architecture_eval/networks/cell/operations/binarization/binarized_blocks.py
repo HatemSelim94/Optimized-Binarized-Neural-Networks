@@ -129,15 +129,15 @@ class BinConvBn(nn.Module):
         #self.ops = nn.Sequential
         self.conv = EvalBinConv2d(in_channels, out_channels, kernel_size, stride=stride,padding= padding, dilation=dilation, padding_mode=padding_mode, jit=jit)
         #self.batchnorm = nn.BatchNorm2d(out_channels, affine=affine)
-        self.batchnorm = nn.Parameter(torch.randn((out_channels)))
-        nn.init.constant_(self.batchnorm, 0.001)
+        self.scale = nn.Parameter(torch.randn((out_channels)))
+        nn.init.constant_(self.scale, 0.001)
         self.binarize = EvalBinActivation(jit,binarization)
         self.latency_table = {}
     def forward(self, x):
         x = self.binarize(x)
         x = self.conv(x)
         #x = self.batchnorm(x)
-        x = x*self.batchnorm[None,:,None,None]
+        x = x*self.scale[None,:,None,None]
         return x
 
     def plot_activation(self, x, path=None):

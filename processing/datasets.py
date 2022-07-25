@@ -23,6 +23,7 @@ class KittiDataset(Dataset):
     std = [0.309, 0.319, 0.329]
     loss_weights_8 = torch.tensor([7.8749, 2.9687, 4.8369, 7.5210, 2.3980, 4.8945, 8.7403, 5.8373])
     loss_weights_3 = torch.tensor([1.666, 3.3242, 5.8373])
+    loss_weights_19 = torch.tensor([3.2507, 6.7467, 5.3669, 8.2086, 8.261, 7.9443, 8.6078, 8.4439, 2.7671, 5.0717, 4.8129, 8.7567, 8.8039, 5.9655, 8.6652, 8.7762, 8.6715, 8.8171, 8.7824])
     Id2CategoryID   = { label.id : label.categoryId for label in labels }
     Id2CustomID   = { label.id : label.customId for label in labels }
     Id2TrainID   = { label.id : label.trainId for label in labels }
@@ -46,6 +47,7 @@ class KittiDataset(Dataset):
         self.save_annotation = save_annotation
         self.images = []
         self.targets = []
+        self.img_sizes = {}
         self.train= train
         if train:
             self.location = 'training/'
@@ -88,6 +90,8 @@ class KittiDataset(Dataset):
         if self.train:
             image = Image.open(self.images[index])
             label = Image.open(self.targets[index])
+            w, h = image.size
+            self.img_sizes[index] = (w,h)
             if not self.save_annotation:
                 if self.no_of_classes !=34:
                     label = self._change_annotation(np.array(label).astype(np.int16)) # int16: there is a -1 label (ignored label) 
@@ -97,9 +101,11 @@ class KittiDataset(Dataset):
             return image, label, index
         else:
             image = Image.open(self.images[index])
+            w, h = image.size
+            self.img_sizes[index] = (w,h)
             if self.transforms:
                 image, _= self.transforms(image)
-            return image, index
+            return image, torch.ones_like(image),index
             
     def _download(self):
         raise NotImplementedError
@@ -150,24 +156,65 @@ class KittiDataset(Dataset):
         else:
             self.targets_dir = new_dir_path
 
-    def convert_to_orig_ids(self, pred, id, ncls = 20,save=True, save_dir=None):
+    def to_orig_ids(self, pred, index, rgb=True,save=True, save_dir=None, folder='test_semantic'):
         '''
         label: label is a tensor on cpu
         kitti2015_results
         '''
+        if torch.is_tensor(index):
+            index = index.item()
+        if rgb:
+            rgb_img = decode_segmap(pred.squeeze(), 20)
         if pred is not None:
-            if ncls ==20:
-                for label in reversed(labels):
-                    if label.trainId >18 or label.trainId<0:
-                        continue 
-                    pred[pred == label.trainId] = label.id
+            for label in reversed(labels):
+                if label.trainId >18 or label.trainId<0:
+                    continue 
+                pred[pred == label.trainId] = label.id
         if save:
-            image_name = self.images[id].split('/')
-            print(image_name[-1])
-            pred_image = pred.numpy().astype(np.uint8)
-            pred_img = Image.fromarray(pred_image)
-            os.makedirs(os.path.join(save_dir,'semantic'),exist_ok=True)
-            pred_img.save(os.path.join(save_dir,'test_semantic',"Kitti2015_"+image_name[-1]))
+            image_name = self.images[index].split('/')
+            w,h = self.img_sizes[index]
+            #print(image_name[-1])
+            pred_image = pred.squeeze().numpy().astype(np.uint8)
+            pred_img = cv2.resize(pred_image, (w,h), 0,0,interpolation=cv2.INTER_NEAREST)
+            pred_img = Image.fromarray(pred_img)
+            os.makedirs(os.path.join(save_dir,folder),exist_ok=True)
+            pred_img.save(os.path.join(save_dir,folder,"Kitti2015_"+image_name[-1]))
+            if rgb:
+                os.makedirs(os.path.join(save_dir,folder+'_rgb'),exist_ok=True)
+                rgb_img = rgb_img.numpy().astype(np.uint8)
+                rgb_img = Image.fromarray(rgb_img)
+                rgb_img.resize((w,h),resample=Image.NEAREST)
+                rgb_img.save(os.path.join(save_dir,folder+'_rgb',"Kitti2015_"+image_name[-1]))
+
+    def save(self, pred, id,rgb=True, save_dir=None, folder='val_semantic'):
+        '''
+        save validation set predictions
+        '''
+        #print(pred.shape)
+        if torch.is_tensor(id):
+            id = id.item()
+        w,h = self.img_sizes[id]
+        #print(pred.shape)
+        #pred = torch.nn.functional.interpolate(pred.unsqueeze(0).uint8(), size=(h,w), mode='nearest').squeeze()
+        if rgb:
+            rgb_img = decode_segmap(pred.squeeze(), 20)
+        image_name = self.images[id].split('/')
+        pred_img = pred.squeeze().numpy().astype(np.uint8)
+        #print(pred_img.shape)
+        pred_img = cv2.resize(pred_img, (w,h),0,0,interpolation=cv2.INTER_NEAREST)
+        pred_img = Image.fromarray(pred_img)
+        
+        #print(torch.unique(rgb_img))
+        #print(rgb_img.shape)
+        #rgb_img = torch.nn.functional.interpolate(rgb_img, size=(h,w), mode='nearest')
+        rgb_img = rgb_img.numpy().astype(np.uint8)
+        #rgb_img = cv2.resize(rgb_img, (w,h), 0, 0, cv2.INTER_NEAREST)
+        rgb_img = Image.fromarray(rgb_img)
+        #os.makedirs(os.path.join(save_dir, 'val_semantic_rgb'),exist_ok=True)
+        os.makedirs(os.path.join(save_dir, folder),exist_ok=True)
+        rgb_img.resize((w,h),resample=Image.NEAREST)
+        rgb_img.save(os.path.join(save_dir, folder,image_name[-1].split('.')[0]+'_rgb.png'))
+        pred_img.save(os.path.join(save_dir,folder, image_name[-1]))
 
         
 class KittiRoad(Dataset):
@@ -375,12 +422,16 @@ class CityScapes(Dataset):
     std = [0.229, 0.224, 0.225]
     loss_weights_3 = torch.tensor([1.8845, 2.6459, 5.4678])
     loss_weights_8 = torch.tensor([4.7437, 2.4198, 3.6643, 7.5959, 4.2248, 6.8981, 7.8759, 5.4678])
+    loss_weights_19 = torch.tensor([2.5132, 6.0156, 3.3467, 8.3918, 8.2555, 8.0497, 8.6819, 8.4575, 
+                                    4.06, 8.0897, 6.7302, 8.0545, 8.731, 5.7502, 8.642, 8.6635, 8.6651, 8.7559, 8.5457])
     label_dir = 'gtFine'
     raw_dir = 'leftImg8bit'
     coarse_label_dir = 'gtCoarse'
     Id2CategoryID   = { label.id : label.categoryId for label in labels }
     Id2CustomID   = { label.id : label.customId for label in labels }
     Id2TrainID   = { label.id : label.trainId for label in labels }
+    Labels = labels
+    #TrainID2ID = {label.trainId: label.id for label in labels} 
     def __init__(self, transforms=ToTensor(),no_of_classes=34, split='train', mode='fine',dataset_dir = 'data/cityscapes/', download=False, save_annotation=True):
         """ Cityscapes datasset
         Args:
@@ -417,6 +468,8 @@ class CityScapes(Dataset):
         
         self.raw_images =[]
         self.labels = []
+        self.pred_names = []
+        self.img_sizes = {}
         self.transforms = transforms
 
         self.images_dir = os.path.join(self.dataset_dir, self.raw_dir, self._location)
@@ -427,16 +480,21 @@ class CityScapes(Dataset):
                     files_dir,image_file
                     ))
                 label_file_id = image_file.split('leftImg8bit.png')[0]
+                self.pred_names.append(label_file_id+'pred')
                 self.labels.append(os.path.join(self.dataset_dir,
                     self.label_dir,self._location, city, label_file_id+self.label_file_name
                 ))
+        
                 
     def __len__(self):
         return len(self.raw_images)
     
     def __getitem__(self, index):
-        image = Image.open(self.raw_images[index])
+        image = Image.open(self.raw_images[index]) 
         label = Image.open(self.labels[index])
+        w, h = image.size
+        self.img_sizes[index] = (w,h)
+        #pred_name = self.pred_names[index]
         if not self.save_annotation:
             if self.mode == 'fine':
                 if self.no_of_classes != 34:
@@ -490,14 +548,64 @@ class CityScapes(Dataset):
                         target_img.save(target_file_path)
         
         self.label_dir = self.label_dir+f'_{self.no_of_classes}'
+    
+    def to_orig_ids(self, pred, index=None,save=True, save_dir=None,folder='test_semantic'):
+        if torch.is_tensor(index):
+            index = index.item()
+        for label in reversed(labels):
+            if label.trainId >18 or label.trainId<0:
+                continue 
+            pred[pred==label.trainId] = label.id
+        if save:
+            image_name = self.pred_names[index]
+            w,h = self.img_sizes[index]
+            #print(image_name)
+            pred_img = pred.squeeze().numpy().astype(np.uint8)
+            pred_img = cv2.resize(pred_img, (w,h), 0,0,interpolation=cv2.INTER_NEAREST)
+            pred_img = Image.fromarray(pred_img)
+            os.makedirs(os.path.join(save_dir,folder),exist_ok=True)
+            pred_img.save(os.path.join(save_dir,folder,image_name+'.png'))
+    
+    def save(self, pred, id,rgb=True, save_dir=None,folder='val_semantic'):
+        '''
+        save validation set predictions
+        '''
+        if torch.is_tensor(id):
+            id = id.item()
+        w,h = self.img_sizes[id]
+        #pred = torch.nn.functional.interpolate(pred.unsqueeze(0), size=(h,w), mode='nearest').squeeze()
+        if rgb:
+            rgb_img = decode_segmap(pred.squeeze(), 20)
+        image_name = self.pred_names[id]
+        pred_img =  pred.squeeze().numpy().astype(np.uint8)
+        pred_img = cv2.resize(pred_img, (w,h),0,0,interpolation=cv2.INTER_NEAREST)
+        pred_img = Image.fromarray(pred_img)
+        
+        #rgb_img = torch.nn.functional.interpolate(rgb_img, size=(h,w), mode='nearest')
+        rgb_img = rgb_img.numpy().astype(np.uint8)
+        #rgb_img = cv2.resize(rgb_img, (w,h), 0, 0, cv2.INTER_NEAREST)
+        rgb_img = Image.fromarray(rgb_img)
+        #print(image_name)
+        #os.makedirs(os.path.join(save_dir, 'val_semantic_rgb'),exist_ok=True)
+        os.makedirs(os.path.join(save_dir, folder),exist_ok=True)
+        rgb_img.resize((w,h),resample=Image.NEAREST)
+        rgb_img.save(os.path.join(save_dir, folder,image_name+'_rgb.png'))
+        pred_img.save(os.path.join(save_dir,folder, image_name+'.png'))
+
+        
+
+
 
 
 class DataSets:
     @staticmethod
     def get_dataset(name, no_of_classes, transforms=ToTensor(),split='train',mode='fine',save_annotation=True):
+        if no_of_classes == 19:
+            no_of_classes = 20
         if name == 'kitti':
-            assert split == 'train'
-            return KittiDataset(transforms=transforms, no_of_classes=no_of_classes, train=True)
+            assert split == 'train' or split=='test'
+            train = True if split == 'train' else False
+            return KittiDataset(transforms=transforms, no_of_classes=no_of_classes, train=train)
         elif name == 'cityscapes':
             return CityScapes(transforms=transforms, no_of_classes=no_of_classes, split=split, mode = mode, save_annotation=save_annotation)
     
