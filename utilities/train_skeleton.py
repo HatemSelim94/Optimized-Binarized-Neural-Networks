@@ -68,6 +68,40 @@ def model_info(net, input_shape, save=False, dir=None, verbose=True, kd=False):
         with open(filename+'.json', 'w') as f:
             json.dump(info, f) 
 
+from thop import profile, clever_format
+from ptflops import get_model_complexity_info
+
+def fp_model_info(model, input_shape,save=True,dir=None):
+    macs, params = get_model_complexity_info(model, input_shape[1:], as_strings=False, verbose=True)
+    size = round(params*32/4/1e6,2)
+    gmacs = round(macs/1e9, 2)
+    latency_ms, fps = get_latency(model, input_shape)
+    print(f'Size: {size} MB')
+    print(f'FLOPs: {gmacs} GFLOPS')
+    print(f'Latency: {latency_ms} ms')
+    if save:
+        info = {'model_size':size,'GFLOPS':gmacs, 'latency':latency_ms}
+        os.makedirs(dir, exist_ok=True)
+        filename = os.path.join(dir, 'model_info')
+        with open(filename+'.json', 'w') as f:
+            json.dump(info, f)
+
+def fp_model_info_2(model, input_shape,save=True,dir=None):
+    input = torch.randn((input_shape)).cuda()
+    macs, params = profile(model, inputs=(input, ))
+    size = round(params*32/4/1e6,2)
+    gmacs = round(macs/1e9, 2)
+    latency_ms, fps = get_latency(model, input_shape)
+    print(f'Size: {size} MB')
+    print(f'FLOPs: {gmacs} GFLOPS')
+    print(f'Latency: {latency_ms} ms')
+    if save:
+        info = {'model_size':size,'GFLOPS':gmacs, 'latency':latency_ms}
+        os.makedirs(dir, exist_ok=True)
+        filename = os.path.join(dir, 'model_info_2')
+        with open(filename+'.json', 'w') as f:
+            json.dump(info, f)
+
 def set_seeds(seed=4):
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.deterministic = True

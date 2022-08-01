@@ -1,4 +1,5 @@
 import sys
+
 sys.path.append("/home/hatem/Projects/server/final_repo/final_repo")
 import torch
 import torch.nn as nn
@@ -9,7 +10,8 @@ import os
 from model import ENet as Network
 from processing import Transformer, DataSets
 from processing.datasets import CityScapes, KittiDataset
-from utilities import infer_sub, set_seeds, Clipper, DataPlotter, Tracker, train_sub, model_info, clean_dir, prepare_ops_metrics, Logger
+from utilities import infer_sub, set_seeds, Clipper, DataPlotter, Tracker, train_sub, model_info, clean_dir, prepare_ops_metrics, Logger,fp_model_info, fp_model_info_2
+
 
 parser  = argparse.ArgumentParser('BEDN')
 parser.add_argument('--image_size_w', type=int, default=1280)
@@ -39,7 +41,7 @@ parser.add_argument('--use_weights', type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
-
+ 
 
 
 def main():
@@ -87,8 +89,9 @@ def main():
     val_loader = torch.utils.data.DataLoader(
                     sub_val_dataset, 
                     batch_size= args.batch_size, pin_memory = True)
-    model_info(net, input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
-
+    #model_info(net, input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
+    fp_model_info(net, input_shape,dir=os.path.join(args.experiment_path, args.experiment_name))
+    fp_model_info_2(net, input_shape,dir=os.path.join(args.experiment_path, args.experiment_name))
     num_of_classes = args.num_of_classes
     fp_params = [p for p in net.parameters() if not hasattr(p,'bin')]
     bin_params = [p for p in net.parameters() if hasattr(p,'bin')]

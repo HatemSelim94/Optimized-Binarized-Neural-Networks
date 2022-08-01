@@ -3,10 +3,10 @@ python fp_models/bedn/run_sub.py --data_name 'cityscapes' --data_path '../../dat
 --batch_size 12 --image_size 448 --num_of_classes 19 --train_subset 2900 --val_subset 500 \
 --epochs 300 --network_optim 'Adam' --network_optim_bin_lr 1e-2 --network_optim_fp_lr 1e-3 \
 --network_optim_fp_weight_decay 5e-4 --network_optim_bin_betas 0.2 \
---experiment_path 'fp_models/bedn/sub_experiments/' --experiment_name 'bedn_sub_cityscapes_test_final' --device 'cuda' \
+--experiment_path 'fp_models/bedn/sub_experiments/' --experiment_name 'bedn_sub_cityscapes_test_final_2' --device 'cuda' \
 --seed 4 --decay_val 0.9 --decay_step 10 --use_weights 1
 
 exp_path='fp_models/bedn/sub_experiments/'
-exp_name='bedn_sub_cityscapes_test_final'
+exp_name='bedn_sub_cityscapes_test_final_2'
 exp_path+=$exp_name
 cp run_bedn_sub.bash $exp_path
