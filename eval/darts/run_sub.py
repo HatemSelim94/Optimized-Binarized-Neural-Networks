@@ -84,7 +84,7 @@ def main():
     clean_dir(args)
     if not torch.cuda.is_available():
         sys.exit(1)
-    train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'resize':{'size':[args.image_size_h,args.image_size_w]},'random_horizontal_flip':{'flip_prob':0.5}})
+    train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size_h+100,args.image_size_w+100]}, 'random_crop':{'size':[args.image_size_h,args.image_size_w]},'random_horizontal_flip':{'flip_prob':0.5}})
     val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size_h,args.image_size_w]}})
     #plot_transforms = Transformer.get_transforms({'resize':{'size':[args.image_size,args.image_size]}})
     train_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes, transforms=train_transforms)

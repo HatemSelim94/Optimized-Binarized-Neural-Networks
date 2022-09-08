@@ -534,7 +534,7 @@ def infer_sub(valid_queue, model, criterion, num_of_classes=3, device='cuda', lo
     if logger is not None:
         logger(cls_iou)
         logger(cat_iou)
-    print(cls_miou)
+    print(cls_miou, cat_miou)
       #if step % args.report_freq == 0:
     val_loss /= len(valid_queue.dataset)
     return round(cls_miou*100, 2), round(cat_miou*100, 2), val_loss
@@ -710,13 +710,17 @@ class DataPlotter:
         self.data[self.__scores_train].append(train_scores)
         self.data[self.__scores_val].append(val_scores)
 
-    def save_as_json(self):
+    def save_as_json(self,filename=None):
         if self.loaded:
             with open(os.path.join(self.file_path, '_data_new.json'), 'w', encoding='utf-8') as f:
                 json.dump(self.data, f, ensure_ascii=False, indent=4)
         else:
-            with open(os.path.join(self.file_path, '_data.json'), 'w', encoding='utf-8') as f:
-                json.dump(self.data, f, ensure_ascii=False, indent=4)
+            if filename is None:
+                with open(os.path.join(self.file_path, '_data.json'), 'w', encoding='utf-8') as f:
+                    json.dump(self.data, f, ensure_ascii=False, indent=4)
+            else:
+                with open(os.path.join(self.file_path, f'_data_{filename}.json'), 'w', encoding='utf-8') as f:
+                    json.dump(self.data, f, ensure_ascii=False, indent=4)
     
     def load_json(self):
         self.loaded = True

@@ -7,7 +7,7 @@ from torch.utils.data import Subset
 import argparse
 import os
 
-from model import ENet as Network
+from model import BiSeNet as Network
 from processing import Transformer, DataSets
 from processing.datasets import CityScapes, KittiDataset
 from utilities import infer_sub, set_seeds, Clipper, DataPlotter, Tracker, train_sub, model_info, clean_dir, prepare_ops_metrics, Logger,fp_model_info, fp_model_info_2
@@ -41,7 +41,7 @@ parser.add_argument('--use_weights', type=int, default=0)
 args = parser.parse_args()
 torch.cuda.empty_cache()
 
- 
+lambda_function = lambda epoch: (1-epoch/args.epochs)**0.9 
 
 
 def main():
@@ -49,7 +49,7 @@ def main():
     clean_dir(args)
     if not torch.cuda.is_available():
         sys.exit(1)
-    train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'random_crop':{'size':[args.image_size_h,args.image_size_w]},'random_horizontal_flip':{'flip_prob':0.5}})
+    train_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std}, 'random_scale':{'scales':[0.75, 1,1.5,1.75,2]},'random_crop':{'size':[args.image_size_h,args.image_size_w]},'random_horizontal_flip':{'flip_prob':0.5}})
     val_transforms = Transformer.get_transforms({'normalize':{'mean':CityScapes.mean,'std':CityScapes.std},'resize':{'size':[args.image_size_h,args.image_size_w]}})
     #plot_transforms = Transformer.get_transforms({'resize':{'size':[args.image_size,args.image_size]}})
     train_dataset = DataSets.get_dataset(args.data_name, no_of_classes=args.num_of_classes, transforms=train_transforms)
@@ -82,7 +82,6 @@ def main():
         val_idx = range(args.val_subset) 
         sub_train_dataset = Subset(train_dataset, [i for i in train_idx])
         sub_val_dataset = Subset(val_dataset, [i for i in val_idx])
-
     train_loader = torch.utils.data.DataLoader(
                     sub_train_dataset, 
                     batch_size=args.batch_size, pin_memory = True)
@@ -91,17 +90,17 @@ def main():
                     batch_size= args.batch_size, pin_memory = True)
     #model_info(net, input_shape, save=True, dir=os.path.join(args.experiment_path, args.experiment_name), verbose=True)
     fp_model_info(net, input_shape,dir=os.path.join(args.experiment_path, args.experiment_name))
-    fp_model_info_2(net, input_shape,dir=os.path.join(args.experiment_path, args.experiment_name))
+    #fp_model_info_2(net, input_shape,dir=os.path.join(args.experiment_path, args.experiment_name))
     num_of_classes = args.num_of_classes
     fp_params = [p for p in net.parameters() if not hasattr(p,'bin')]
     bin_params = [p for p in net.parameters() if hasattr(p,'bin')]
     optim_args = [{'params':fp_params, 'weight_decay':args.network_optim_fp_weight_decay,'lr':args.network_optim_fp_lr}]
     optim_args = [[{'params':fp_params, 'weight_decay':args.network_optim_fp_weight_decay,'lr':args.network_optim_fp_lr},{'params':bin_params, 'weight_decay':0.001,'lr':args.network_optim_bin_lr}]]
     optimizer = Clipper.get_clipped_optim(args.network_optim, optim_args)
-    optimizer = torch.optim.Adam(fp_params, lr=args.network_optim_fp_lr) 
+    optimizer = torch.optim.SGD(fp_params, lr=2.5*1e-2, weight_decay=1e-4, momentum=0.9) 
     #optimizer=Clipper.get_clipped_optim('SGD',optim_args)
-    #scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda step:((step/args.epochs))**2)
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[i for i in range(20, args.epochs, args.decay_step)], gamma=args.decay_val)
+    scheduler = torch.optim.lr_scheduler.LambdaLR(optimizer, lambda_function)
+    #scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[i for i in range(20, args.epochs, args.decay_step)], gamma=args.decay_val)
     data = DataPlotter(os.path.join(args.experiment_path, args.experiment_name))
     tracker = Tracker(args.epochs)
     logger = Logger(os.path.join(args.experiment_path, args.experiment_name,'logs.log'))

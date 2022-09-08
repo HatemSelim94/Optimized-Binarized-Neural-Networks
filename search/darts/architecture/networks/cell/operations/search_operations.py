@@ -144,6 +144,9 @@ class AvgPool(nn.Module):
     def __init__(self, in_channels, affine, stride = None, kernel_size=3, padding= 1, activation='htanh'):
         super(AvgPool, self).__init__()
         self.latency_table = {}
+        self.kernel_size = kernel_size
+        self.padding = padding 
+        self.stride = stride
         padding = kernel_size//2
         self.activation_func = activation
         self.affine = affine
@@ -161,7 +164,7 @@ class AvgPool(nn.Module):
         return self.layers(x)
     
     def get_config(self):
-        return {'in_channels':self.in_channels, 'kernel_size':self.layers[0].kernel_size, 'stride':self.layers[0].stride,'padding':self.layers[0].padding, 'affine':self.affine, 'activation':self.activation_func}
+        return {'in_channels':self.in_channels, 'kernel_size':self.kernel_size, 'stride':self.stride,'padding':self.padding, 'affine':self.affine, 'activation':self.activation_func}
     
     @classmethod
     def model(cls, config):
@@ -172,6 +175,12 @@ class MaxPool(nn.Module):
     def __init__(self, in_channels, affine, kernel_size=3, stride = None, padding= 1, dilation=1, activation='htanh'):
         super(MaxPool, self).__init__()
         self.latency_table = {}
+        self.kernel_size = kernel_size
+        self.padding = padding
+        self.dilation = dilation 
+        self.stride = stride
+        
+        
         padding = kernel_size//2
         self.activation_func = activation
         self.affine = affine
@@ -189,7 +198,7 @@ class MaxPool(nn.Module):
         return self.layers(x)
     
     def get_config(self):
-        return {'in_channels':self.in_channels, 'kernel_size':self.layers[0].kernel_size, 'stride':self.layers[0].stride,'padding':self.layers[0].padding, 'affine':self.affine, 'activation':self.activation_func}
+        return {'in_channels':self.in_channels, 'kernel_size':self.kernel_size, 'stride':self.stride,'padding':self.padding, 'affine':self.affine, 'activation':self.activation_func}
     
     @classmethod
     def model(cls, config):

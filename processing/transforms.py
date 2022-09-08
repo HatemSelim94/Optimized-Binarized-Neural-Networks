@@ -135,6 +135,25 @@ class RandomResize():
                 target = F.resize(target.unsqueeze(0),size=self.size, interpolation=F.InterpolationMode.NEAREST, antialias=False)
         return image, target.squeeze(0)
 
+
+class RandomResizeBisenet():
+    def __init__(self, scales=[0.75, 1,1.5,1.75,2]) -> None:
+        scales is not None 
+        self.scales = scales
+        if not isinstance(self.scales, list):
+                self.scales = [self.scales, self.scales]
+
+    def __call__(self, image, target):
+        scale = random.choice(self.scales)
+        w,h = image.size
+        #print(h,w)
+        size = [int(h * scale),int(w*scale)]
+        image = F.resize(image, size=size, interpolation=F.InterpolationMode.BILINEAR, antialias=True)
+        if target is not None:
+            target = F.resize(target,size=size, interpolation=F.InterpolationMode.NEAREST, antialias=True)
+        return image, target
+
+
 class Resize:
     def __init__(self, size) -> None:
         self.size = size
@@ -151,7 +170,7 @@ class Transformer:
     def get_transforms(parameters, to_tensor=True):
         transforms = {'random_horizontal_flip': RandomHorizontalFlip, 
                     'normalize':Normalize, 'resize':Resize, 'random_crop':RandomCrop,
-                    'random_resize':RandomResize, 'center_crop':CenterCrop}
+                    'random_resize':RandomResize, 'center_crop':CenterCrop,'random_scale':RandomResizeBisenet}
         list_of_transforms = []
         for transform, params in parameters.items():
             if transform != 'normalize':

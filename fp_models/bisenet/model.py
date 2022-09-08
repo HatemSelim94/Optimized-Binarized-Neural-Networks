@@ -186,8 +186,8 @@ class BiSeNet(torch.nn.Module):
         result = torch.nn.functional.interpolate(result, scale_factor=8, mode='bilinear')
         result = self.conv(result)
 
-        if self.training == True:
-            return result, cx1_sup, cx2_sup
+        #if self.training == True:
+        #    return result, cx1_sup, cx2_sup
 
         return result
 
